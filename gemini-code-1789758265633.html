@@ -1,0 +1,2264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
+    <title>Gallery Studio</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <style>
+      :root {
+        --bg-color: #ffffff;
+        --sidebar-bg: #ffffff;
+        --card-bg: #f8fafc;
+        --card-border: rgba(0, 0, 0, 0.08);
+        --text-color: #0f172a;
+        --text-muted: #64748b;
+        --control-bg: rgba(0, 0, 0, 0.04);
+        --control-hover: rgba(0, 0, 0, 0.08);
+        --header-bg: rgba(255, 255, 255, 0.95);
+        --tick-bg: rgba(255, 255, 255, 0.85);
+        --tick-border: rgba(0, 0, 0, 0.2);
+        --action-btn-bg: rgba(255, 255, 255, 0.9);
+        
+        --accent-grad: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #6366f1 100%);
+        --accent-glow: rgba(99, 102, 241, 0.25);
+        --pink-fav: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
+        --danger-grad: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        
+        --card-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.1);
+
+        /* Configurable Transition Duration */
+        --transition-speed: 0.42s;
+        --transition-easing: cubic-bezier(0.25, 1, 0.5, 1);
+      }
+
+      [data-theme="dark"] {
+        --bg-color: #0b0f19;
+        --sidebar-bg: #111827;
+        --card-bg: #1f2937;
+        --card-border: rgba(255, 255, 255, 0.08);
+        --text-color: #f8fafc;
+        --text-muted: #94a3b8;
+        --control-bg: rgba(255, 255, 255, 0.06);
+        --control-hover: rgba(255, 255, 255, 0.12);
+        --header-bg: rgba(11, 15, 25, 0.92);
+        --tick-bg: rgba(31, 41, 55, 0.85);
+        --tick-border: rgba(255, 255, 255, 0.2);
+        --action-btn-bg: rgba(31, 41, 55, 0.9);
+        
+        --card-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.4);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        margin: 0;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        width: 280px;
+        background: var(--sidebar-bg);
+        border-right: 1px solid var(--card-border);
+        padding: 28px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        flex-shrink: 0;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1050;
+        overflow-y: auto;
+      }
+
+      .sidebar.collapsed {
+        transform: translateX(-100%);
+        margin-right: -280px;
+      }
+
+      .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 1040;
+      }
+
+      @media (max-width: 768px) {
+        .sidebar {
+          position: fixed;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          box-shadow: 10px 0 35px rgba(0,0,0,0.3);
+        }
+        .sidebar.collapsed {
+          transform: translateX(-100%);
+          margin-right: 0;
+        }
+        .sidebar-backdrop.active {
+          display: block;
+        }
+      }
+
+      .app-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .app-brand-logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--accent-grad);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 20px;
+        box-shadow: 0 4px 14px var(--accent-glow);
+      }
+
+      .app-brand h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        background: var(--accent-grad);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .sidebar-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      .sidebar-group-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        font-weight: 700;
+        letter-spacing: 1px;
+      }
+
+      .search-wrapper {
+        position: relative;
+        width: 100%;
+        display: flex;
+        align-items: center;
+      }
+
+      .search-wrapper input {
+        width: 100%;
+        padding-right: 32px;
+      }
+
+      .search-clear-btn {
+        position: absolute;
+        right: 10px;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        display: none;
+        padding: 4px;
+        border-radius: 50%;
+      }
+
+      .search-clear-btn:hover {
+        color: var(--text-color);
+      }
+
+      .theme-switch-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .theme-switch-btn {
+        background: var(--control-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-color);
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+      }
+
+      .theme-switch-btn.active {
+        background: var(--accent-grad);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 2px 10px var(--accent-glow);
+      }
+
+      .main-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 20px 28px 20px;
+        min-width: 0;
+        position: relative;
+        z-index: 1;
+        background: var(--bg-color);
+      }
+
+      .static-top {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--bg-color);
+        backdrop-filter: blur(12px);
+        padding: 24px 28px 16px 28px;
+        margin-left: -28px;          
+        margin-right: -28px;         
+        margin-bottom: 20px;
+        border-bottom: 1px solid transparent;
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
+      }
+
+      .static-top.header-hidden {
+        transform: translateY(-100%);
+      }
+
+      .static-top.header-scrolled {
+        border-bottom-color: var(--card-border);
+      }
+
+      .header-reveal-btn {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-80px) scale(0.8);
+        z-index: 1060;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid var(--card-border);
+        background: var(--sidebar-bg);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+        user-select: none;
+      }
+
+      .header-reveal-btn.visible {
+        transform: translateX(-50%) translateY(0) scale(1);
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .header-reveal-btn:hover {
+        transform: translateX(-50%) translateY(0) scale(1.12);
+      }
+
+      header {
+        max-width: 1440px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .app-title {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        background: var(--accent-grad);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .image-stats {
+        font-size: 13px;
+        color: var(--text-color);
+        background: var(--control-bg);
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--card-border);
+        font-weight: 600;
+        display: block;
+        text-align: center;
+      }
+
+      .toolbar {
+        max-width: 1440px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .toolbar-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .toolbar-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .input-control {
+        background: var(--control-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-color);
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        outline: none;
+        transition: all 0.25s ease;
+      }
+
+      .input-control:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      }
+
+      .btn {
+        background: var(--control-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-color);
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        user-select: none;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .btn-icon {
+        padding: 10px 14px;
+        font-size: 16px;
+      }
+
+      .sidebar .btn {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+      }
+
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .btn-accent {
+        background: var(--accent-grad);
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 4px 15px var(--accent-glow);
+      }
+
+      .btn-accent:hover:not(:disabled) {
+        opacity: 0.95;
+      }
+
+      .btn-toggle.active {
+        background: var(--pink-fav);
+        border-color: transparent;
+        color: #ffffff;
+        box-shadow: 0 4px 15px rgba(244, 63, 94, 0.35);
+      }
+
+      .btn-danger {
+        background: var(--danger-grad);
+        border-color: transparent;
+        color: #ffffff;
+      }
+
+      .action-group-selected {
+        display: none;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .action-group-selected.active {
+        display: inline-flex;
+      }
+
+      .classic-blue-tick {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid var(--tick-border);
+        background: var(--tick-bg);
+        backdrop-filter: blur(4px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        user-select: none;
+        color: transparent;
+        font-size: 14px;
+        font-weight: 800;
+        pointer-events: auto;
+        transition: all 0.2s ease;
+      }
+
+      .classic-blue-tick.selected {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #ffffff;
+      }
+
+      .classic-blue-tick:hover {
+        transform: scale(1.1);
+      }
+
+      .masonry-grid {
+        column-count: 4;
+        column-gap: 20px;
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+
+      @media (max-width: 1400px) { .masonry-grid { column-count: 3; } }
+      @media (max-width: 900px)  { .masonry-grid { column-count: 2; } }
+      @media (max-width: 600px)  { .masonry-grid { column-count: 1; } }
+
+      .masonry-item {
+        position: relative;
+        break-inside: avoid;
+        margin-bottom: 20px;
+        background: var(--card-bg);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--card-border);
+        box-shadow: var(--card-shadow);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+      }
+
+      .masonry-item:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.2);
+      }
+
+      .masonry-item.selected {
+        outline: 3px solid #6366f1;
+      }
+
+      .masonry-item img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .card-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 14px;
+        background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.5) 100%);
+      }
+
+      .overlay-top, .overlay-bottom {
+        display: flex;
+        align-items: center;
+      }
+
+      .overlay-top {
+        justify-content: space-between;
+      }
+
+      .overlay-bottom {
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .card-overlay .classic-blue-tick, 
+      .card-overlay .action-btn {
+        opacity: 0;
+        transform: translateY(4px);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .masonry-item:hover .classic-blue-tick,
+      .masonry-item:hover .action-btn,
+      .masonry-item.selected .classic-blue-tick,
+      .masonry-item.selected .action-btn {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (hover: none) {
+        .card-overlay .classic-blue-tick,
+        .card-overlay .action-btn {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .action-btn {
+        background: var(--action-btn-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-color);
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 15px;
+        pointer-events: auto;
+        transition: all 0.2s ease;
+      }
+
+      .action-btn:hover {
+        transform: scale(1.1);
+      }
+
+      .action-btn.fav-btn.active {
+        opacity: 1;
+        background: var(--pink-fav);
+        border-color: transparent;
+        color: #ffffff;
+      }
+
+      .notification {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        background: #0f172a;
+        color: #ffffff;
+        padding: 10px 18px;
+        border-radius: 12px;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.25);
+        z-index: 1300;
+        display: none;
+        align-items: center;
+        max-width: 420px;
+        animation: slideUp 0.25s ease forwards;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .notification-text {
+        font-size: 13px;
+        font-weight: 500;
+        word-break: break-all;
+      }
+
+      .notification-text.small-url {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        color: #cbd5e1;
+        line-height: 1.4;
+      }
+
+      @keyframes slideUp {
+        from { transform: translateY(16px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      .modal, .confirm-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background-color: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(14px);
+        z-index: 1100;
+        justify-content: center;
+        align-items: center;
+        padding: 24px;
+        touch-action: none;
+      }
+
+      .modal.open, .confirm-overlay.open {
+        display: flex;
+      }
+
+      /* Top Left Docked Slideshow Control Bar */
+      .modal-slideshow-bar {
+        position: absolute;
+        top: 24px;
+        left: 32px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 46px;
+        z-index: 1120;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        padding: 0 10px;
+        border-radius: 40px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
+      }
+
+      .modal-slideshow-bar.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-10px);
+      }
+
+      /* Icon-Only Slideshow Control Button */
+      .modal-control-btn-icon {
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        font-size: 15px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.25s var(--transition-easing);
+        user-select: none;
+      }
+
+      .modal-control-btn-icon:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(1.08);
+      }
+
+      .modal-control-btn-icon.active {
+        background: var(--accent-grad);
+        border-color: transparent;
+        box-shadow: 0 0 14px var(--accent-glow);
+      }
+
+      .modal-select {
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        height: 32px;
+        padding: 0 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s ease;
+      }
+
+      .modal-select option {
+        background: #1e293b;
+        color: #f8fafc;
+      }
+
+      .modal-select:hover, .modal-select:focus {
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      /* Top Right Close Button */
+      .modal-close-btn {
+        position: absolute;
+        top: 24px;
+        right: 32px;
+        height: 46px;
+        width: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 50%;
+        color: #ffffff;
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 1120;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing), background 0.2s ease;
+        user-select: none;
+      }
+
+      .modal-close-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(1.12);
+      }
+
+      .modal-close-btn.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-10px);
+      }
+
+      .modal-viewer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .modal-content {
+        max-width: 90vw;
+        max-height: 90vh;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        object-fit: contain;
+        user-select: none;
+        cursor: grab;
+        transform-origin: center center;
+        transition: transform var(--transition-speed) var(--transition-easing), opacity var(--transition-speed) var(--transition-easing);
+      }
+
+      .modal-content:active {
+        cursor: grabbing;
+      }
+
+      .anim-slide-left {
+        transform: translateX(-140px) scale(0.96) !important;
+        opacity: 0 !important;
+      }
+
+      .anim-slide-right {
+        transform: translateX(140px) scale(0.96) !important;
+        opacity: 0 !important;
+      }
+
+      .anim-fade-out {
+        opacity: 0 !important;
+      }
+
+      .anim-zoom-out {
+        transform: scale(0.68) !important;
+        opacity: 0 !important;
+      }
+
+      .modal-nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 24px;
+        backdrop-filter: blur(6px);
+        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
+        z-index: 1110;
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .modal-nav-btn.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .modal-nav-btn:hover {
+        background: rgba(255, 255, 255, 0.35);
+        transform: translateY(-50%) scale(1.08);
+      }
+
+      .modal-nav-prev { left: 28px; }
+      .modal-nav-next { right: 28px; }
+
+      .modal-bottom-actions {
+        position: absolute;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 16px;
+        z-index: 1110;
+        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .modal-bottom-actions.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .modal-bottom-actions .action-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+      }
+
+      .confirm-dialog {
+        background: var(--sidebar-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-color);
+        padding: 24px;
+        border-radius: 18px;
+        width: 340px;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      }
+
+      .confirm-dialog h3 {
+        margin: 0 0 12px;
+        font-size: 20px;
+      }
+
+      .confirm-dialog p {
+        margin: 0 0 20px;
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+
+      .confirm-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .loading-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-muted);
+        font-size: 17px;
+        font-weight: 500;
+      }
+
+      * {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button,
+      a,
+      input,
+      select,
+      .classic-blue-tick,
+      .masonry-item {
+        outline: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button:focus,
+      button:active {
+        outline: none;
+      }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <aside class="sidebar collapsed" id="sidebar">
+      <div class="app-brand">
+        <div class="app-brand-logo">✦</div>
+        <h1>Studio</h1>
+      </div>
+      
+      <div class="sidebar-group">
+        <span class="sidebar-group-title">Search Archive</span>
+        <div class="search-wrapper">
+          <input 
+            type="text" 
+            id="searchInput" 
+            class="input-control" 
+            placeholder="Filter by title or URL..."
+          />
+          <button id="clearSearchBtn" class="search-clear-btn" title="Clear Search">✕</button>
+        </div>
+      </div>
+
+      <div class="sidebar-group">
+        <span class="sidebar-group-title">Appearance</span>
+        <div class="theme-switch-row">
+          <button id="themeLightBtn" class="theme-switch-btn active" type="button">
+            ☀️ Light
+          </button>
+          <button id="themeDarkBtn" class="theme-switch-btn" type="button">
+            🌙 Dark
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-group">
+        <span class="sidebar-group-title">Statistics</span>
+        <span id="statsLabel" class="image-stats">0 Images Loaded</span>
+      </div>
+
+      <div class="sidebar-group">
+        <span class="sidebar-group-title">Backup & Sync</span>
+        <button id="exportJsonBtn" class="btn">
+          📥 Export JSON
+        </button>
+        <button id="importJsonBtn" class="btn">
+          📤 Import JSON
+        </button>
+        <input type="file" id="importFileInput" accept=".json" style="display: none;" />
+      </div>
+    </aside>
+
+    <button id="headerRevealBtn" class="header-reveal-btn" title="Show Header Controls">✨</button>
+
+    <main class="main-content" id="mainContent">
+      <div class="static-top" id="staticTop">
+        <header>
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <button id="menuToggleBtn" class="btn btn-icon" title="Toggle Navigation">☰</button>
+            <h1 class="app-title">Gallery Collection</h1>
+            <div style="display: flex; gap: 6px; margin-left: 8px;">
+              <button id="undoBtn" class="btn btn-icon" disabled title="Undo Action">↶</button>
+              <button id="redoBtn" class="btn btn-icon" disabled title="Redo Action">↷</button>
+            </div>
+          </div>
+        </header>
+
+        <section class="toolbar">
+          <div class="toolbar-row">
+            <div class="toolbar-group">
+              <button id="favFilterBtn" class="btn btn-toggle" title="Show saved favorites">
+                ♥ Favorites Only
+              </button>
+
+              <select id="sortSelect" class="input-control" title="Sort by order">
+                <option value="newest">🕒 Newest Added</option>
+                <option value="oldest">🕰️ Oldest Added</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="toolbar-row">
+            <div class="toolbar-group">
+              <label style="display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; user-select: none;">
+                <span id="selectAllTick" class="classic-blue-tick" title="Select / Deselect all">✓</span>
+                <span>Select All</span>
+              </label>
+              <span id="selectedCountBadge" style="font-size: 13px; color: var(--text-muted); font-weight: 500;">(0 selected)</span>
+            </div>
+
+            <div class="action-group-selected" id="selectedActionsGroup">
+              <button id="downloadSelectedBtn" class="btn btn-accent" title="Download chosen pictures">
+                📦 Download Zip
+              </button>
+              <button id="deleteSelectedBtn" class="btn btn-danger" title="Delete chosen pictures">
+                🗑️ Delete Selected
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div id="loadingMessage" class="loading-state">✨ Loading your visual gallery...</div>
+      <div class="masonry-grid" id="imageGrid"></div>
+    </main>
+
+    <div class="modal" id="imageModal">
+      
+      <!-- Top Left Docked Bar (Emoji Only Play/Pause Button) -->
+      <div class="modal-slideshow-bar" id="modalSlideshowBar">
+        <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Toggle Auto Slideshow">
+          <span id="slideshowIcon">▶</span>
+        </button>
+
+        <select id="slideshowTimerSelect" class="modal-select" title="Set Slide Duration">
+          <option value="1000">1s</option>
+          <option value="2000">2s</option>
+          <option value="3000" selected>3s</option>
+          <option value="5000">5s</option>
+          <option value="10000">10s</option>
+        </select>
+
+        <select id="slideshowAnimSelect" class="modal-select" title="Set Transition Effect">
+          <option value="slide" selected>Slide</option>
+          <option value="fade">Fade</option>
+          <option value="zoom">Zoom</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+
+      <!-- Top Right Close Cross Button -->
+      <button class="modal-close-btn" id="modalClose" title="Close Lightbox">&times;</button>
+
+      <button class="modal-nav-btn modal-nav-prev" id="modalPrevBtn" title="Previous">‹</button>
+      
+      <div class="modal-viewer" id="modalViewer">
+        <img class="modal-content" id="modalImg" alt="Enlarged gallery view" title="Drag / Swipe horizontally or click to toggle buttons" draggable="false" />
+      </div>
+
+      <button class="modal-nav-btn modal-nav-next" id="modalNextBtn" title="Next">›</button>
+
+      <div class="modal-bottom-actions" id="modalBottomActions">
+        <button class="action-btn fav-btn" id="modalFavBtn" title="Toggle Favorite">♡</button>
+        <button class="action-btn" id="modalShareBtn" title="Share Image">🔗</button>
+        <button class="action-btn" id="modalDownloadBtn" title="Download">↓</button>
+        <button class="action-btn btn-danger" id="modalDeleteBtn" title="Delete" style="color: white; border: none;">🗑️</button>
+      </div>
+    </div>
+
+    <div class="confirm-overlay" id="confirmOverlay">
+      <div class="confirm-dialog">
+        <h3 id="confirmTitle">Remove Media</h3>
+        <p id="confirmDesc">Are you sure? This will delete the chosen items from your cloud database.</p>
+        <div class="confirm-actions">
+          <button id="cancelDeleteBtn" class="btn">Cancel</button>
+          <button id="confirmDeleteBtn" class="btn btn-danger">Confirm Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="notificationToast" class="notification">
+      <span id="notificationMessage" class="notification-text">Notification</span>
+    </div>
+
+    <script>
+      const PROJECT_ID = "monster-rk";
+      const API_KEY = "AIzaSyDNXuf7O3nepPVyM43TgAXxnkGw5gpKd3s";
+      const COLLECTION_NAME = "images";
+      const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}`;
+      const FIRESTORE_QUERY = `${FIRESTORE_BASE}?pageSize=1000&key=${API_KEY}`;
+
+      const TRANSITION_DURATION_MS = 420;
+
+      const gridContainer = document.getElementById('imageGrid');
+      const loadingMessage = document.getElementById('loadingMessage');
+      const statsLabel = document.getElementById('statsLabel');
+      const searchInput = document.getElementById('searchInput');
+      const clearSearchBtn = document.getElementById('clearSearchBtn');
+      const sortSelect = document.getElementById('sortSelect');
+      const favFilterBtn = document.getElementById('favFilterBtn');
+      
+      const sidebar = document.getElementById('sidebar');
+      const menuToggleBtn = document.getElementById('menuToggleBtn');
+      const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+      const themeLightBtn = document.getElementById('themeLightBtn');
+      const themeDarkBtn = document.getElementById('themeDarkBtn');
+
+      const exportJsonBtn = document.getElementById('exportJsonBtn');
+      const importJsonBtn = document.getElementById('importJsonBtn');
+      const importFileInput = document.getElementById('importFileInput');
+      
+      const undoBtn = document.getElementById('undoBtn');
+      const redoBtn = document.getElementById('redoBtn');
+      const selectAllTick = document.getElementById('selectAllTick');
+      const selectedCountBadge = document.getElementById('selectedCountBadge');
+      const selectedActionsGroup = document.getElementById('selectedActionsGroup');
+      const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+      const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+      
+      const notificationToast = document.getElementById('notificationToast');
+      const notificationMessage = document.getElementById('notificationMessage');
+      
+      const mainContent = document.getElementById('mainContent');
+      const staticTop = document.getElementById('staticTop');
+      const headerRevealBtn = document.getElementById('headerRevealBtn');
+
+      const imageModal = document.getElementById('imageModal');
+      const modalViewer = document.getElementById('modalViewer');
+      const modalImg = document.getElementById('modalImg');
+      const modalClose = document.getElementById('modalClose');
+      const modalSlideshowBar = document.getElementById('modalSlideshowBar');
+      const modalPrevBtn = document.getElementById('modalPrevBtn');
+      const modalNextBtn = document.getElementById('modalNextBtn');
+      
+      const modalBottomActions = document.getElementById('modalBottomActions');
+      const modalFavBtn = document.getElementById('modalFavBtn');
+      const modalShareBtn = document.getElementById('modalShareBtn');
+      const modalDownloadBtn = document.getElementById('modalDownloadBtn');
+      const modalDeleteBtn = document.getElementById('modalDeleteBtn');
+
+      const slideshowToggleBtn = document.getElementById('slideshowToggleBtn');
+      const slideshowIcon = document.getElementById('slideshowIcon');
+      const slideshowTimerSelect = document.getElementById('slideshowTimerSelect');
+      const slideshowAnimSelect = document.getElementById('slideshowAnimSelect');
+
+      const confirmOverlay = document.getElementById('confirmOverlay');
+      const confirmTitle = document.getElementById('confirmTitle');
+      const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+      const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+
+      let allImages = [];
+      let selectedUrls = new Set();
+      let favorites = new Set();
+      let showFavoritesOnly = false;
+      let allSelectedState = false;
+      let ignoreScrollEvents = false;
+      
+      let actionHistory = [];
+      let currentHistoryIndex = -1;
+      let currentModalIndex = -1;
+
+      let slideshowTimer = null;
+      let isSlideshowPlaying = false;
+      let isTransitioning = false;
+
+      function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('gallery_theme', theme);
+        if (theme === 'dark') {
+          themeDarkBtn.classList.add('active');
+          themeLightBtn.classList.remove('active');
+        } else {
+          themeLightBtn.classList.add('active');
+          themeDarkBtn.classList.remove('active');
+        }
+      }
+
+      themeLightBtn.addEventListener('click', () => setTheme('light'));
+      themeDarkBtn.addEventListener('click', () => setTheme('dark'));
+
+      const savedTheme = localStorage.getItem('gallery_theme') || 'light';
+      setTheme(savedTheme);
+
+      let lastScrollY = 0;
+      mainContent.addEventListener('scroll', () => {
+        if (ignoreScrollEvents) {
+          lastScrollY = mainContent.scrollTop;
+          return;
+        }
+
+        const currentY = mainContent.scrollTop;
+        const delta = currentY - lastScrollY;
+
+        if (currentY > 15) {
+          staticTop.classList.add('header-scrolled');
+        } else {
+          staticTop.classList.remove('header-scrolled');
+        }
+
+        if (Math.abs(delta) > 8) {
+          if (delta > 0 && currentY > 100) {
+            staticTop.classList.add('header-hidden');
+            headerRevealBtn.classList.remove('visible');
+          } else if (delta < 0 && currentY > 100) {
+            if (staticTop.classList.contains('header-hidden')) {
+              headerRevealBtn.classList.add('visible');
+            }
+          } else if (currentY <= 100) {
+            staticTop.classList.remove('header-hidden');
+            headerRevealBtn.classList.remove('visible');
+          }
+          lastScrollY = currentY;
+        }
+      }, { passive: true });
+
+      headerRevealBtn.addEventListener('click', () => {
+        staticTop.classList.remove('header-hidden');
+        headerRevealBtn.classList.remove('visible');
+      });
+
+      function toggleSidebar() {
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        if (window.innerWidth <= 768) {
+          sidebarBackdrop.classList.toggle('active', !isCollapsed);
+        }
+      }
+
+      menuToggleBtn.addEventListener('click', toggleSidebar);
+      sidebarBackdrop.addEventListener('click', toggleSidebar);
+
+      function updateHistoryButtons() {
+        undoBtn.disabled = currentHistoryIndex < 0;
+        redoBtn.disabled = currentHistoryIndex >= actionHistory.length - 1;
+      }
+
+      function pushToHistory(action) {
+        actionHistory = actionHistory.slice(0, currentHistoryIndex + 1);
+        actionHistory.push(action);
+        currentHistoryIndex++;
+        updateHistoryButtons();
+      }
+
+      function showNotification(text, isSmallUrl = false, duration = 3000) {
+        notificationMessage.textContent = text;
+        if (isSmallUrl) {
+          notificationMessage.classList.add('small-url');
+        } else {
+          notificationMessage.classList.remove('small-url');
+        }
+        notificationToast.style.display = 'flex';
+        clearTimeout(notificationToast._timer);
+        notificationToast._timer = setTimeout(() => {
+          notificationToast.style.display = 'none';
+        }, duration);
+      }
+
+      function sanitizeFilename(url, suggestedName) {
+        if (suggestedName && suggestedName.trim().length > 0) {
+          let name = suggestedName.trim().replace(/[/\\?%*:|"<>]/g, '-');
+          if (!/\.(jpg|jpeg|png|webp|gif|svg|bmp)$/i.test(name)) name += '.jpg';
+          return name;
+        }
+        try {
+          const parsed = new URL(url);
+          let filename = parsed.pathname.substring(parsed.pathname.lastIndexOf('/') + 1);
+          if (filename && filename.includes('.')) {
+            return decodeURIComponent(filename.replace(/[/\\?%*:|"<>]/g, '-'));
+          }
+        } catch (e) {}
+        return `image_${Date.now()}.jpg`;
+      }
+
+      async function triggerSafeFileDownload(blob, filename) {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+
+        if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: filename,
+              text: `Exported: ${filename}`
+            });
+            return;
+          } catch (e) {
+            if (e.name === 'AbortError') return;
+          }
+        }
+
+        try {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.style.display = 'none';
+          link.href = url;
+          link.setAttribute('download', filename);
+
+          document.body.appendChild(link);
+          link.click();
+
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }, 2000);
+        } catch (err) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            window.open(reader.result, '_blank');
+          };
+          reader.readAsDataURL(blob);
+        }
+      }
+
+      async function shareImageDirectly(url, name) {
+        showNotification('Preparing image for sharing...');
+        const filename = sanitizeFilename(url, name);
+        try {
+          const response = await fetch(url, { referrerPolicy: 'no-referrer', mode: 'cors' });
+          if (!response.ok) throw new Error('CORS error');
+          const blob = await response.blob();
+          const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: name || 'Shared Image'
+            });
+            return;
+          }
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+        }
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: name || 'Shared Image',
+              url: url
+            });
+            return;
+          } catch (e) {
+            if (e.name === 'AbortError') return;
+          }
+        }
+
+        try {
+          await navigator.clipboard.writeText(url);
+          showNotification('Link copied to clipboard!');
+        } catch (err) {
+          window.open(url, '_blank');
+        }
+      }
+
+      async function downloadSingleImage(url, name) {
+        showNotification('Downloading image...');
+        const filename = sanitizeFilename(url, name);
+        try {
+          const response = await fetch(url, { referrerPolicy: 'no-referrer', mode: 'cors' });
+          if (!response.ok) throw new Error('CORS or Network error');
+          const blob = await response.blob();
+          await triggerSafeFileDownload(blob, filename);
+          showNotification('Download finished!');
+        } catch (err) {
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showNotification('Opening image in a new tab.');
+        }
+      }
+
+      async function downloadZipArchive(itemsToDownload, zipFilename = 'gallery-collection.zip') {
+        if (!itemsToDownload || itemsToDownload.length === 0) return;
+        if (itemsToDownload.length === 1) {
+          downloadSingleImage(itemsToDownload[0].url, itemsToDownload[0].name);
+          return;
+        }
+
+        showNotification(`Archiving ${itemsToDownload.length} files...`, false, 6000);
+        const zip = new JSZip();
+        let successCount = 0;
+
+        const downloadPromises = itemsToDownload.map(async (item, i) => {
+          const filename = sanitizeFilename(item.url, item.name || `image_${i + 1}`);
+          try {
+            const resp = await fetch(item.url, { referrerPolicy: 'no-referrer' });
+            if (!resp.ok) throw new Error('Fetch error');
+            const blob = await resp.blob();
+            zip.file(filename, blob);
+            successCount++;
+          } catch (error) { }
+        });
+
+        await Promise.allSettled(downloadPromises);
+
+        if (successCount === 0) {
+          showNotification('Network limitations prevented download.');
+          return;
+        }
+
+        showNotification('Compiling zip archive...');
+        const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
+        await triggerSafeFileDownload(zipBlob, zipFilename);
+        showNotification(`Exported ${successCount} images.`);
+      }
+
+      function getVisibleImages() {
+        const query = searchInput.value.trim().toLowerCase();
+
+        return allImages
+          .filter(item => {
+            if (showFavoritesOnly && !favorites.has(item.url)) return false;
+            if (!query) return true;
+            const matchName = item.name && item.name.toLowerCase().includes(query);
+            const matchUrl = item.url && item.url.toLowerCase().includes(query);
+            return matchName || matchUrl;
+          })
+          .sort((a, b) => {
+            if (sortSelect.value === 'newest') return b.originalIndex - a.originalIndex;
+            return a.originalIndex - b.originalIndex;
+          });
+      }
+
+      function renderGallery() {
+        gridContainer.innerHTML = '';
+        const visibleItems = getVisibleImages();
+        statsLabel.textContent = `${allImages.length} Image${allImages.length === 1 ? '' : 's'} Stored`;
+
+        updateSelectionState();
+
+        if (visibleItems.length === 0) {
+          gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1 / -1; color: var(--text-muted); padding: 50px; font-weight: 500;">No images match your query.</div>';
+          return;
+        }
+
+        visibleItems.forEach((item, index) => {
+          const isSelected = selectedUrls.has(item.url);
+          const card = document.createElement('div');
+          card.className = `masonry-item ${isSelected ? 'selected' : ''}`;
+
+          const img = document.createElement('img');
+          img.referrerPolicy = 'no-referrer';
+          img.src = item.url;
+          img.loading = 'lazy';
+          img.alt = item.name || 'Gallery photo';
+
+          const overlay = document.createElement('div');
+          overlay.className = 'card-overlay';
+
+          const topRow = document.createElement('div');
+          topRow.className = 'overlay-top';
+
+          const tickBtn = document.createElement('span');
+          tickBtn.className = `classic-blue-tick ${isSelected ? 'selected' : ''}`;
+          tickBtn.title = 'Select';
+          tickBtn.textContent = '✓';
+          
+          tickBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (selectedUrls.has(item.url)) {
+              selectedUrls.delete(item.url);
+              card.classList.remove('selected');
+              tickBtn.classList.remove('selected');
+            } else {
+              selectedUrls.add(item.url);
+              card.classList.add('selected');
+              tickBtn.classList.add('selected');
+            }
+            updateSelectionState();
+          });
+
+          const favBtn = document.createElement('button');
+          const isFav = favorites.has(item.url);
+          favBtn.className = `action-btn fav-btn ${isFav ? 'active' : ''}`;
+          favBtn.title = isFav ? 'Remove Favorite' : 'Save Favorite';
+          favBtn.innerHTML = isFav ? '♥' : '♡';
+          favBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleFavorite(item, true);
+          });
+
+          topRow.appendChild(tickBtn);
+          topRow.appendChild(favBtn);
+
+          const bottomRow = document.createElement('div');
+          bottomRow.className = 'overlay-bottom';
+
+          const shareBtn = document.createElement('button');
+          shareBtn.className = 'action-btn';
+          shareBtn.title = 'Share';
+          shareBtn.innerHTML = '🔗';
+          shareBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            shareImageDirectly(item.url, item.name);
+          });
+
+          const dlBtn = document.createElement('button');
+          dlBtn.className = 'action-btn';
+          dlBtn.title = 'Download';
+          dlBtn.innerHTML = '↓';
+          dlBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadSingleImage(item.url, item.name);
+          });
+
+          bottomRow.appendChild(shareBtn);
+          bottomRow.appendChild(dlBtn);
+          overlay.appendChild(topRow);
+          overlay.appendChild(bottomRow);
+
+          const copyUrlHandler = (e) => {
+            e.preventDefault();
+            navigator.clipboard.writeText(item.url).catch(() => {});
+            showNotification(`Copied: ${item.url}`, true, 3000);
+          };
+
+          card.addEventListener('contextmenu', copyUrlHandler);
+
+          let touchTimer = null;
+          card.addEventListener('touchstart', (e) => {
+            touchTimer = setTimeout(() => {
+              copyUrlHandler(e);
+            }, 600);
+          }, { passive: true });
+
+          card.addEventListener('touchend', () => clearTimeout(touchTimer));
+          card.addEventListener('touchmove', () => clearTimeout(touchTimer));
+
+          card.addEventListener('click', () => openPopupByIndex(index));
+
+          card.appendChild(img);
+          card.appendChild(overlay);
+          gridContainer.appendChild(card);
+        });
+      }
+
+      function updateSelectionState() {
+        ignoreScrollEvents = true;
+
+        const visible = getVisibleImages();
+        const count = selectedUrls.size;
+        selectedCountBadge.textContent = `(${count} selected)`;
+
+        if (count > 0) {
+          selectedActionsGroup.classList.add('active');
+        } else {
+          selectedActionsGroup.classList.remove('active');
+        }
+
+        if (visible.length > 0 && visible.every(item => selectedUrls.has(item.url))) {
+          selectAllTick.classList.add('selected');
+          allSelectedState = true;
+        } else {
+          selectAllTick.classList.remove('selected');
+          allSelectedState = false;
+        }
+
+        requestAnimationFrame(() => {
+          lastScrollY = mainContent.scrollTop;
+          setTimeout(() => {
+            lastScrollY = mainContent.scrollTop;
+            ignoreScrollEvents = false;
+          }, 60);
+        });
+      }
+
+      selectAllTick.parentElement.addEventListener('click', () => {
+        const visible = getVisibleImages();
+        allSelectedState = !allSelectedState;
+        
+        if (allSelectedState) {
+          visible.forEach(item => selectedUrls.add(item.url));
+        } else {
+          visible.forEach(item => selectedUrls.delete(item.url));
+        }
+        renderGallery();
+      });
+
+      downloadSelectedBtn.addEventListener('click', () => {
+        const selectedItems = allImages.filter(img => selectedUrls.has(img.url));
+        downloadZipArchive(selectedItems, 'selected-gallery.zip');
+      });
+
+      function toggleFavorite(item, recordHistory = true) {
+        const isFav = favorites.has(item.url);
+        const newFavStatus = !isFav;
+
+        if (newFavStatus) {
+          favorites.add(item.url);
+          showNotification('Added to favorites');
+        } else {
+          favorites.delete(item.url);
+          showNotification('Removed from favorites');
+        }
+
+        if (recordHistory) {
+          pushToHistory({
+            type: 'favorite',
+            url: item.url,
+            item: item,
+            previousState: isFav,
+            newState: newFavStatus
+          });
+        }
+
+        renderGallery();
+
+        try {
+          const patchUrl = `https://firestore.googleapis.com/v1/${item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`;
+          fetch(patchUrl, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: { favorite: { booleanValue: newFavStatus } } })
+          });
+        } catch (error) { }
+      }
+
+      deleteSelectedBtn.addEventListener('click', () => {
+        const count = selectedUrls.size;
+        if (count === 0) return;
+        confirmTitle.textContent = `Delete ${count} Image${count > 1 ? 's' : ''}?`;
+        confirmOverlay.classList.add('open');
+      });
+
+      confirmDeleteBtn.addEventListener('click', async () => {
+        const itemsToDelete = allImages.filter(img => selectedUrls.has(img.url));
+        
+        pushToHistory({
+          type: 'delete',
+          items: [...itemsToDelete]
+        });
+        
+        allImages = allImages.filter(img => !selectedUrls.has(img.url));
+        selectedUrls.forEach(url => favorites.delete(url));
+        selectedUrls.clear();
+        
+        confirmOverlay.classList.remove('open');
+        renderGallery();
+        showNotification('Removing selected items...');
+
+        const deletePromises = itemsToDelete.map(item => {
+          if (item.id) {
+            const deleteUrl = `https://firestore.googleapis.com/v1/${item.id}?key=${API_KEY}`;
+            return fetch(deleteUrl, { method: 'DELETE' });
+          }
+          return Promise.resolve();
+        });
+
+        try { await Promise.allSettled(deletePromises); } catch (e) { }
+      });
+
+      cancelDeleteBtn.addEventListener('click', () => confirmOverlay.classList.remove('open'));
+      
+      favFilterBtn.addEventListener('click', () => {
+        showFavoritesOnly = !showFavoritesOnly;
+        favFilterBtn.classList.toggle('active', showFavoritesOnly);
+        renderGallery();
+      });
+
+      searchInput.addEventListener('input', () => {
+        clearSearchBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
+        renderGallery();
+      });
+
+      clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        clearSearchBtn.style.display = 'none';
+        searchInput.focus();
+        renderGallery();
+      });
+
+      sortSelect.addEventListener('change', renderGallery);
+
+      exportJsonBtn.addEventListener('click', async () => {
+        const exportData = allImages.map(img => ({
+          url: img.url,
+          favorite: favorites.has(img.url)
+        }));
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        await triggerSafeFileDownload(blob, `gallery_backup_${Date.now()}.json`);
+        showNotification('Backup exported.');
+      });
+
+      importJsonBtn.addEventListener('click', () => importFileInput.click());
+      
+      importFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (!Array.isArray(data)) throw new Error("Format invalid");
+            showNotification(`Syncing ${data.length} files...`, false, 4000);
+            
+            for (const item of data) {
+              const url = item.url || item;
+              if (typeof url !== 'string' || !url.startsWith('http')) continue;
+              
+              const isFav = item.favorite === true;
+              const firestorePayload = {
+                fields: {
+                  str: { stringValue: url },
+                  date: { timestampValue: new Date().toISOString() },
+                  favorite: { booleanValue: isFav }
+                }
+              };
+
+              await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(firestorePayload)
+              });
+            }
+            
+            showNotification('Sync complete!');
+            setTimeout(() => window.location.reload(), 1000);
+          } catch (err) {
+            showNotification('Could not parse JSON archive.');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      undoBtn.addEventListener('click', async () => {
+        if (currentHistoryIndex < 0) return;
+        const action = actionHistory[currentHistoryIndex];
+        
+        if (action.type === 'delete') {
+          showNotification('Restoring images...');
+          allImages.push(...action.items);
+          currentHistoryIndex--;
+          updateHistoryButtons();
+          renderGallery();
+
+          const restoredItems = [];
+          for (const item of action.items) {
+             const firestorePayload = {
+               fields: {
+                 str: { stringValue: item.url },
+                 date: { timestampValue: new Date().toISOString() },
+                 favorite: { booleanValue: favorites.has(item.url) }
+               }
+             };
+             try {
+                const res = await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(firestorePayload)
+                });
+                const data = await res.json();
+                restoredItems.push({ ...item, id: data.name });
+             } catch(e) { 
+                restoredItems.push(item);
+             }
+          }
+          action.items = restoredItems;
+        } else if (action.type === 'favorite') {
+          if (action.previousState) {
+            favorites.add(action.url);
+          } else {
+            favorites.delete(action.url);
+          }
+          currentHistoryIndex--;
+          updateHistoryButtons();
+          renderGallery();
+
+          try {
+            fetch(`https://firestore.googleapis.com/v1/${action.item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fields: { favorite: { booleanValue: action.previousState } } })
+            });
+          } catch (e) {}
+        }
+      });
+
+      redoBtn.addEventListener('click', async () => {
+        if (currentHistoryIndex >= actionHistory.length - 1) return;
+        currentHistoryIndex++;
+        const action = actionHistory[currentHistoryIndex];
+
+        if (action.type === 'delete') {
+          showNotification('Redoing delete...');
+          const urlsToRemove = new Set(action.items.map(i => i.url));
+          
+          allImages = allImages.filter(img => !urlsToRemove.has(img.url));
+          urlsToRemove.forEach(url => favorites.delete(url));
+          selectedUrls.clear();
+          updateHistoryButtons();
+          renderGallery();
+
+          for (const item of action.items) {
+            if (item.id) {
+               fetch(`https://firestore.googleapis.com/v1/${item.id}?key=${API_KEY}`, { method: 'DELETE' });
+            }
+          }
+        } else if (action.type === 'favorite') {
+          if (action.newState) {
+            favorites.add(action.url);
+          } else {
+            favorites.delete(action.url);
+          }
+          updateHistoryButtons();
+          renderGallery();
+
+          try {
+            fetch(`https://firestore.googleapis.com/v1/${action.item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fields: { favorite: { booleanValue: action.newState } } })
+            });
+          } catch (e) {}
+        }
+      });
+
+      const MAX_SCALE = 6;
+      let currentScale = 1;
+      let panX = 0;
+      let panY = 0;
+      let pinchStartDist = 0;
+      let startScale = 1;
+      let isZoomed = false;
+
+      function areButtonsVisible() {
+        return !modalPrevBtn.classList.contains('hidden') || !modalBottomActions.classList.contains('hidden');
+      }
+
+      function updateImageTransform(animated = false) {
+        if (animated) {
+          modalImg.style.transition = `transform var(--transition-speed) var(--transition-easing), opacity var(--transition-speed) var(--transition-easing)`;
+        } else {
+          modalImg.style.transition = 'none';
+        }
+        modalImg.style.transform = `translate(${panX}px, ${panY}px) scale(${currentScale})`;
+        isZoomed = currentScale > 1.05;
+      }
+
+      function resetZoom(animated = true) {
+        currentScale = 1;
+        panX = 0;
+        panY = 0;
+        isZoomed = false;
+        updateImageTransform(animated);
+      }
+
+      function updateModalFavUI() {
+        const visible = getVisibleImages();
+        if (!visible.length || currentModalIndex < 0) return;
+        const isFav = favorites.has(visible[currentModalIndex].url);
+        
+        if (isFav) {
+          modalFavBtn.classList.add('active');
+          modalFavBtn.innerHTML = '♥';
+        } else {
+          modalFavBtn.classList.remove('active');
+          modalFavBtn.innerHTML = '♡';
+        }
+      }
+
+      function openPopupByIndex(index) {
+        const visible = getVisibleImages();
+        if (!visible.length) return;
+        
+        resetZoom(false);
+        currentModalIndex = (index + visible.length) % visible.length;
+        modalImg.src = visible[currentModalIndex].url;
+        modalImg.className = 'modal-content';
+        
+        modalClose.classList.remove('hidden');
+        modalSlideshowBar.classList.remove('hidden');
+        modalPrevBtn.classList.remove('hidden');
+        modalNextBtn.classList.remove('hidden');
+        modalBottomActions.classList.remove('hidden');
+        updateModalFavUI();
+        imageModal.classList.add('open');
+      }
+
+      function clearTransitionClasses() {
+        modalImg.classList.remove('anim-slide-left', 'anim-slide-right', 'anim-fade-out', 'anim-zoom-out');
+      }
+
+      function transitionToImage(nextIndex, direction = 'next') {
+        const visible = getVisibleImages();
+        if (visible.length <= 1 || isTransitioning) return;
+        
+        const animType = slideshowAnimSelect.value;
+
+        if (animType === 'none') {
+          resetZoom(false);
+          currentModalIndex = nextIndex;
+          modalImg.src = visible[currentModalIndex].url;
+          updateModalFavUI();
+          return;
+        }
+
+        isTransitioning = true;
+        modalImg.style.transition = `transform var(--transition-speed) var(--transition-easing), opacity var(--transition-speed) var(--transition-easing)`;
+
+        if (animType === 'slide') {
+          modalImg.classList.add(direction === 'next' ? 'anim-slide-left' : 'anim-slide-right');
+        } else if (animType === 'fade') {
+          modalImg.classList.add('anim-fade-out');
+        } else if (animType === 'zoom') {
+          modalImg.classList.add('anim-zoom-out');
+        }
+
+        setTimeout(() => {
+          resetZoom(false);
+          currentModalIndex = nextIndex;
+          modalImg.src = visible[currentModalIndex].url;
+          updateModalFavUI();
+
+          modalImg.style.transition = 'none';
+          clearTransitionClasses();
+
+          if (animType === 'slide') {
+            modalImg.classList.add(direction === 'next' ? 'anim-slide-right' : 'anim-slide-left');
+          } else if (animType === 'fade') {
+            modalImg.classList.add('anim-fade-out');
+          } else if (animType === 'zoom') {
+            modalImg.classList.add('anim-zoom-out');
+          }
+
+          void modalImg.offsetWidth;
+
+          modalImg.style.transition = `transform var(--transition-speed) var(--transition-easing), opacity var(--transition-speed) var(--transition-easing)`;
+          clearTransitionClasses();
+          modalImg.style.transform = '';
+
+          setTimeout(() => {
+            isTransitioning = false;
+          }, TRANSITION_DURATION_MS);
+        }, TRANSITION_DURATION_MS);
+      }
+
+      function showNextImage() {
+        if (isZoomed || isTransitioning) return;
+        const visible = getVisibleImages();
+        const nextIdx = (currentModalIndex + 1) % visible.length;
+        transitionToImage(nextIdx, 'next');
+      }
+
+      function showPrevImage() {
+        if (isZoomed || isTransitioning) return;
+        const visible = getVisibleImages();
+        const prevIdx = (currentModalIndex - 1 + visible.length) % visible.length;
+        transitionToImage(prevIdx, 'prev');
+      }
+
+      function startSlideshow() {
+        isSlideshowPlaying = true;
+        slideshowToggleBtn.classList.add('active');
+        slideshowIcon.textContent = '⏸';
+
+        clearInterval(slideshowTimer);
+        const interval = Math.max(parseInt(slideshowTimerSelect.value, 10) || 3000, 1500);
+        slideshowTimer = setInterval(() => {
+          showNextImage();
+        }, interval);
+      }
+
+      function stopSlideshow() {
+        isSlideshowPlaying = false;
+        slideshowToggleBtn.classList.remove('active');
+        slideshowIcon.textContent = '▶';
+        clearInterval(slideshowTimer);
+      }
+
+      function toggleSlideshow() {
+        if (isSlideshowPlaying) {
+          stopSlideshow();
+        } else {
+          startSlideshow();
+        }
+      }
+
+      slideshowToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSlideshow();
+      });
+
+      slideshowTimerSelect.addEventListener('change', () => {
+        if (isSlideshowPlaying) {
+          startSlideshow();
+        }
+      });
+
+      slideshowTimerSelect.addEventListener('click', (e) => e.stopPropagation());
+      slideshowAnimSelect.addEventListener('click', (e) => e.stopPropagation());
+
+      let dragDistanceMoved = 0;
+      modalImg.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (dragDistanceMoved > 8) return;
+
+        if (isZoomed) {
+          resetZoom(true);
+          return;
+        }
+
+        modalClose.classList.toggle('hidden');
+        modalSlideshowBar.classList.toggle('hidden');
+        modalPrevBtn.classList.toggle('hidden');
+        modalNextBtn.classList.toggle('hidden');
+        modalBottomActions.classList.toggle('hidden');
+      });
+
+      let startTouchX = 0;
+      let startTouchY = 0;
+      let initialPanX = 0;
+      let initialPanY = 0;
+
+      function getTouchDistance(touches) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      imageModal.addEventListener('touchstart', (e) => {
+        dragDistanceMoved = 0;
+
+        if (e.touches.length === 2) {
+          if (areButtonsVisible()) {
+            pinchStartDist = 0;
+            return;
+          }
+          pinchStartDist = getTouchDistance(e.touches);
+          startScale = currentScale;
+          return;
+        }
+
+        if (e.touches.length === 1) {
+          startTouchX = e.touches[0].clientX;
+          startTouchY = e.touches[0].clientY;
+          initialPanX = panX;
+          initialPanY = panY;
+        }
+      }, { passive: false });
+
+      imageModal.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && pinchStartDist > 0) {
+          e.preventDefault();
+          if (areButtonsVisible()) return;
+
+          const newDist = getTouchDistance(e.touches);
+          const ratio = newDist / pinchStartDist;
+          currentScale = Math.min(Math.max(startScale * ratio, 1), MAX_SCALE);
+          updateImageTransform(false);
+          dragDistanceMoved = 20;
+          return;
+        }
+
+        if (e.touches.length === 1) {
+          const diffX = e.touches[0].clientX - startTouchX;
+          const diffY = e.touches[0].clientY - startTouchY;
+          dragDistanceMoved = Math.sqrt(diffX * diffX + diffY * diffY);
+
+          if (isZoomed) {
+            e.preventDefault();
+            panX = initialPanX + diffX;
+            panY = initialPanY + diffY;
+            updateImageTransform(false);
+          } else {
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+              e.preventDefault();
+              modalImg.style.transform = `translateX(${diffX * 0.75}px)`;
+            }
+          }
+        }
+      }, { passive: false });
+
+      imageModal.addEventListener('touchend', (e) => {
+        if (e.touches.length === 0) {
+          if (currentScale <= 1.05) {
+            resetZoom(true);
+          } else {
+            updateImageTransform(true);
+          }
+
+          if (!isZoomed && dragDistanceMoved > 50) {
+            const finalX = (e.changedTouches[0] ? e.changedTouches[0].clientX : 0) - startTouchX;
+            if (finalX < 0) {
+              showNextImage();
+            } else {
+              showPrevImage();
+            }
+          }
+        }
+      }, { passive: true });
+
+      let isMouseDown = false;
+      let startMouseX = 0;
+      let startMouseY = 0;
+
+      modalViewer.addEventListener('mousedown', (e) => {
+        isMouseDown = true;
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        initialPanX = panX;
+        initialPanY = panY;
+        dragDistanceMoved = 0;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isMouseDown || !imageModal.classList.contains('open')) return;
+        const diffX = e.clientX - startMouseX;
+        const diffY = e.clientY - startMouseY;
+        dragDistanceMoved = Math.sqrt(diffX * diffX + diffY * diffY);
+
+        if (isZoomed) {
+          panX = initialPanX + diffX;
+          panY = initialPanY + diffY;
+          updateImageTransform(false);
+        } else {
+          modalImg.style.transform = `translateX(${diffX * 0.6}px)`;
+        }
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (!isMouseDown) return;
+        isMouseDown = false;
+
+        if (isZoomed) {
+          updateImageTransform(true);
+          return;
+        }
+
+        modalImg.style.transform = '';
+        if (dragDistanceMoved > 60) {
+          const diffX = e.clientX - startMouseX;
+          if (diffX < 0) {
+            showNextImage();
+          } else {
+            showPrevImage();
+          }
+        }
+      });
+
+      let isScrollThrottled = false;
+      imageModal.addEventListener('wheel', (e) => {
+        e.preventDefault();
+
+        if (e.ctrlKey || Math.abs(e.deltaZ || 0) > 0) {
+          if (areButtonsVisible()) return;
+
+          const factor = e.deltaY < 0 ? 1.15 : 0.85;
+          currentScale = Math.min(Math.max(currentScale * factor, 1), MAX_SCALE);
+          if (currentScale <= 1.05) {
+            resetZoom(true);
+          } else {
+            updateImageTransform(true);
+          }
+          return;
+        }
+
+        if (isZoomed || isTransitioning) return;
+
+        if (isScrollThrottled) return;
+        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+
+        if (delta > 20) {
+          showNextImage();
+          isScrollThrottled = true;
+          setTimeout(() => { isScrollThrottled = false; }, TRANSITION_DURATION_MS);
+        } else if (delta < -20) {
+          showPrevImage();
+          isScrollThrottled = true;
+          setTimeout(() => { isScrollThrottled = false; }, TRANSITION_DURATION_MS);
+        }
+      }, { passive: false });
+
+      modalNextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showNextImage();
+      });
+
+      modalPrevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showPrevImage();
+      });
+
+      modalFavBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const visible = getVisibleImages();
+        if (visible.length && currentModalIndex >= 0) {
+          toggleFavorite(visible[currentModalIndex], true);
+          updateModalFavUI();
+        }
+      });
+
+      modalShareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const visible = getVisibleImages();
+        if (visible.length && currentModalIndex >= 0) {
+          shareImageDirectly(visible[currentModalIndex].url, visible[currentModalIndex].name);
+        }
+      });
+
+      modalDownloadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const visible = getVisibleImages();
+        if (visible.length && currentModalIndex >= 0) {
+          downloadSingleImage(visible[currentModalIndex].url, visible[currentModalIndex].name);
+        }
+      });
+
+      modalDeleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const visible = getVisibleImages();
+        if (visible.length && currentModalIndex >= 0) {
+          stopSlideshow();
+          selectedUrls.clear();
+          selectedUrls.add(visible[currentModalIndex].url);
+          updateSelectionState();
+          imageModal.classList.remove('open');
+          
+          confirmTitle.textContent = 'Delete Image?';
+          confirmOverlay.classList.add('open');
+        }
+      });
+
+      function closeModal() {
+        stopSlideshow();
+        resetZoom(false);
+        clearTransitionClasses();
+        imageModal.classList.remove('open');
+      }
+
+      modalClose.addEventListener('click', closeModal);
+      
+      imageModal.addEventListener('click', (e) => {
+        if (e.target === imageModal && dragDistanceMoved <= 8) {
+          if (isZoomed) {
+            resetZoom(true);
+            return;
+          }
+          closeModal();
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (imageModal.classList.contains('open')) {
+          if (e.key === ' ' || e.code === 'Space') {
+            e.preventDefault();
+            toggleSlideshow();
+          } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            if (!isZoomed) showNextImage();
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            if (!isZoomed) showPrevImage();
+          }
+        }
+        if (e.key === 'Escape') {
+          closeModal();
+          confirmOverlay.classList.remove('open');
+        }
+      });
+
+      fetch(FIRESTORE_QUERY, { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => {
+          loadingMessage.style.display = 'none';
+          const docs = data.documents || [];
+
+          if (docs.length === 0) {
+            gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
+            return;
+          }
+
+          allImages = docs.map((doc, index) => {
+            const fields = doc.fields || {};
+            const url = fields.str ? fields.str.stringValue : '';
+            const favorite = fields.favorite ? fields.favorite.booleanValue : false;
+            if (favorite) favorites.add(url);
+
+            return {
+              id: doc.name, 
+              url: url,
+              name: sanitizeFilename(url), 
+              originalIndex: index
+            };
+          });
+
+          renderGallery();
+        })
+        .catch(err => {
+          loadingMessage.textContent = 'Could not fetch gallery items.';
+        });
+    </script>
+</body>
+</html>
