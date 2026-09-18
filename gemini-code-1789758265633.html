@@ -510,7 +510,6 @@
 
       .overlay-bottom {
         justify-content: flex-end;
-        gap: 8px;
       }
 
       .card-overlay .classic-blue-tick, 
@@ -526,14 +525,6 @@
       .masonry-item.selected .action-btn {
         opacity: 1;
         transform: translateY(0);
-      }
-
-      @media (hover: none) {
-        .card-overlay .classic-blue-tick,
-        .card-overlay .action-btn {
-          opacity: 1;
-          transform: translateY(0);
-        }
       }
 
       .action-btn {
@@ -691,7 +682,7 @@
         background: rgba(255, 255, 255, 0.22);
       }
 
-      /* Top Right Close Button */
+      /* Top Right Close Button aligned on top: 24px */
       .modal-close-btn {
         position: absolute;
         top: 24px;
@@ -752,6 +743,7 @@
         cursor: grabbing;
       }
 
+      /* Pronounced Dynamic Transition Classes */
       .anim-slide-left {
         transform: translateX(-140px) scale(0.96) !important;
         opacity: 0 !important;
@@ -867,10 +859,12 @@
         font-weight: 500;
       }
 
+      /* Disable the mobile tap highlight color across all interactive elements */
       * {
         -webkit-tap-highlight-color: transparent;
       }
 
+      /* Remove default focus/active blue outlines when buttons/links are tapped */
       button,
       a,
       input,
@@ -1017,7 +1011,7 @@
         </select>
       </div>
 
-      <!-- Top Right Close Cross Button -->
+      <!-- Top Right Close Cross Button (Same 24px vertical top baseline) -->
       <button class="modal-close-btn" id="modalClose" title="Close Lightbox">&times;</button>
 
       <button class="modal-nav-btn modal-nav-prev" id="modalPrevBtn" title="Previous">‹</button>
@@ -1030,7 +1024,6 @@
 
       <div class="modal-bottom-actions" id="modalBottomActions">
         <button class="action-btn fav-btn" id="modalFavBtn" title="Toggle Favorite">♡</button>
-        <button class="action-btn" id="modalShareBtn" title="Share Image">🔗</button>
         <button class="action-btn" id="modalDownloadBtn" title="Download">↓</button>
         <button class="action-btn btn-danger" id="modalDeleteBtn" title="Delete" style="color: white; border: none;">🗑️</button>
       </div>
@@ -1058,6 +1051,7 @@
       const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}`;
       const FIRESTORE_QUERY = `${FIRESTORE_BASE}?pageSize=1000&key=${API_KEY}`;
 
+      /* Transition Speed Configurations in Milliseconds */
       const TRANSITION_DURATION_MS = 420;
 
       const gridContainer = document.getElementById('imageGrid');
@@ -1104,7 +1098,6 @@
       
       const modalBottomActions = document.getElementById('modalBottomActions');
       const modalFavBtn = document.getElementById('modalFavBtn');
-      const modalShareBtn = document.getElementById('modalShareBtn');
       const modalDownloadBtn = document.getElementById('modalDownloadBtn');
       const modalDeleteBtn = document.getElementById('modalDeleteBtn');
 
@@ -1242,82 +1235,30 @@
 
       async function triggerSafeFileDownload(blob, filename) {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
-
-        if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+        
+        if (isMobile && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: blob.type })] })) {
           try {
-            await navigator.share({
-              files: [file],
-              title: filename,
-              text: `Exported: ${filename}`
-            });
+            const file = new File([blob], filename, { type: blob.type });
+            await navigator.share({ files: [file], title: filename });
             return;
           } catch (e) {
             if (e.name === 'AbortError') return;
           }
         }
 
-        try {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.style.display = 'none';
-          link.href = url;
-          link.setAttribute('download', filename);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.style.display = 'none';
+        link.href = url;
+        link.setAttribute('download', filename);
 
-          document.body.appendChild(link);
-          link.click();
+        document.body.appendChild(link);
+        link.click();
 
-          setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }, 2000);
-        } catch (err) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            window.open(reader.result, '_blank');
-          };
-          reader.readAsDataURL(blob);
-        }
-      }
-
-      async function shareImageDirectly(url, name) {
-        showNotification('Preparing image for sharing...');
-        const filename = sanitizeFilename(url, name);
-        try {
-          const response = await fetch(url, { referrerPolicy: 'no-referrer', mode: 'cors' });
-          if (!response.ok) throw new Error('CORS error');
-          const blob = await response.blob();
-          const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: name || 'Shared Image'
-            });
-            return;
-          }
-        } catch (e) {
-          if (e.name === 'AbortError') return;
-        }
-
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: name || 'Shared Image',
-              url: url
-            });
-            return;
-          } catch (e) {
-            if (e.name === 'AbortError') return;
-          }
-        }
-
-        try {
-          await navigator.clipboard.writeText(url);
-          showNotification('Link copied to clipboard!');
-        } catch (err) {
-          window.open(url, '_blank');
-        }
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 1500);
       }
 
       async function downloadSingleImage(url, name) {
@@ -1457,15 +1398,6 @@
           const bottomRow = document.createElement('div');
           bottomRow.className = 'overlay-bottom';
 
-          const shareBtn = document.createElement('button');
-          shareBtn.className = 'action-btn';
-          shareBtn.title = 'Share';
-          shareBtn.innerHTML = '🔗';
-          shareBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            shareImageDirectly(item.url, item.name);
-          });
-
           const dlBtn = document.createElement('button');
           dlBtn.className = 'action-btn';
           dlBtn.title = 'Download';
@@ -1475,7 +1407,6 @@
             downloadSingleImage(item.url, item.name);
           });
 
-          bottomRow.appendChild(shareBtn);
           bottomRow.appendChild(dlBtn);
           overlay.appendChild(topRow);
           overlay.appendChild(bottomRow);
@@ -1643,13 +1574,13 @@
 
       sortSelect.addEventListener('change', renderGallery);
 
-      exportJsonBtn.addEventListener('click', async () => {
+      exportJsonBtn.addEventListener('click', () => {
         const exportData = allImages.map(img => ({
           url: img.url,
           favorite: favorites.has(img.url)
         }));
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        await triggerSafeFileDownload(blob, `gallery_backup_${Date.now()}.json`);
+        triggerSafeFileDownload(blob, `gallery_backup_${Date.now()}.json`);
         showNotification('Backup exported.');
       });
 
@@ -1895,7 +1826,7 @@
             modalImg.classList.add('anim-zoom-out');
           }
 
-          void modalImg.offsetWidth;
+          void modalImg.offsetWidth; // Force Reflow
 
           modalImg.style.transition = `transform var(--transition-speed) var(--transition-easing), opacity var(--transition-speed) var(--transition-easing)`;
           clearTransitionClasses();
@@ -2159,14 +2090,6 @@
         if (visible.length && currentModalIndex >= 0) {
           toggleFavorite(visible[currentModalIndex], true);
           updateModalFavUI();
-        }
-      });
-
-      modalShareBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const visible = getVisibleImages();
-        if (visible.length && currentModalIndex >= 0) {
-          shareImageDirectly(visible[currentModalIndex].url, visible[currentModalIndex].name);
         }
       });
 
