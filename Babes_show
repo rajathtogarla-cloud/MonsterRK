@@ -558,7 +558,9 @@
       .masonry-item:hover .classic-blue-tick,
       .masonry-item:hover .action-btn,
       .masonry-item.selected .classic-blue-tick,
-      .masonry-item.selected .action-btn {
+      .masonry-item.selected .action-btn,
+      .masonry-item.buttons-pinned .classic-blue-tick,
+      .masonry-item.buttons-pinned .action-btn {
         opacity: 1;
         transform: translateY(0);
       }
@@ -587,11 +589,173 @@
         transform: scale(1.1);
       }
 
+      .action-btn.info-btn {
+        font-weight: 800;
+        font-family: serif;
+        font-size: 17px;
+      }
+
       .action-btn.fav-btn.active {
         opacity: 1;
         background: var(--pink-fav);
         border-color: transparent;
         color: #ffffff;
+      }
+
+      /* OVERLAY INFO & TAG INTERFACE */
+      .overlay-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.7);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        z-index: 1200;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeIn 0.2s ease;
+      }
+      .overlay-modal.open {
+        display: flex;
+      }
+      .overlay-modal-card {
+        background: var(--sidebar-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 520px;
+        padding: 26px;
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        max-height: 85vh;
+        overflow-y: auto;
+      }
+      .overlay-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .overlay-title {
+        font-size: 20px;
+        font-weight: 800;
+        background: var(--accent-grad);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+      }
+      .overlay-close-btn {
+        background: var(--control-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-color);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+      }
+      .overlay-copy-row {
+        display: flex;
+        gap: 10px;
+      }
+      .overlay-copy-row input {
+        flex: 1;
+        min-width: 0;
+        font-size: 15px;
+        padding: 12px 16px;
+      }
+      .overlay-copy-row button {
+        font-size: 15px;
+        padding: 12px 20px;
+      }
+      .tags-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .tags-container {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .tag-badge {
+        font-size: 14px;
+        font-weight: 600;
+        padding: 8px 14px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--control-bg);
+        color: var(--text-color);
+        border: 1px solid var(--card-border);
+        box-shadow: none;
+      }
+      .tag-remove {
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 16px;
+        opacity: 0.6;
+        transition: opacity 0.2s, color 0.2s;
+      }
+      .tag-remove:hover {
+        opacity: 1;
+        color: #ef4444;
+      }
+      .add-tag-btn {
+        background: var(--accent-grad);
+        color: #ffffff;
+        border: 1px solid var(--card-border);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: none;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+      .add-tag-btn:hover {
+        background: var(--control-hover);
+        transform: translateY(-1px);
+      }
+      .add-tag-btn svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.5;
+      }
+
+      #sidebarTags {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .sidebar-tag {
+        background: var(--control-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-color);
+        padding: 6px 10px;
+        border-radius: 12px;
+        font-size: 14px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .sidebar-tag.active {
+        background: var(--pink-fav);
+        color: #fff;
       }
 
       .notification {
@@ -628,6 +792,10 @@
         from { transform: translateY(16px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
 
       .modal, .confirm-overlay {
         display: none;
@@ -647,7 +815,6 @@
         display: flex;
       }
 
-      /* Top Left Docked Slideshow Control Bar */
       .modal-slideshow-bar {
         position: absolute;
         top: 24px;
@@ -673,7 +840,6 @@
         transform: translateY(-10px);
       }
 
-      /* Icon-Only Slideshow Control Button */
       .modal-control-btn-icon {
         -webkit-appearance: none;
         -moz-appearance: none;
@@ -735,7 +901,6 @@
         background-color: rgba(255, 255, 255, 0.22);
       }
 
-      /* Top Right Close Button aligned on top: 24px */
       .modal-close-btn {
         -webkit-appearance: none;
         -moz-appearance: none;
@@ -810,7 +975,6 @@
         opacity: 0 !important;
       }
 
-      /* Pronounced Dynamic Transition Classes */
       .anim-slide-left {
         transform: translateX(-140px) scale(0.96) !important;
         opacity: 0 !important;
@@ -930,7 +1094,6 @@
         font-weight: 500;
       }
 
-      /* Touch & focus normalizations */
       * {
         -webkit-tap-highlight-color: transparent;
       }
@@ -968,7 +1131,7 @@
             type="text" 
             id="searchInput" 
             class="input-control" 
-            placeholder="Filter by title or URL..."
+            placeholder="Filter by title, tag or URL..."
           />
           <button id="clearSearchBtn" class="search-clear-btn" title="Clear Search">✕</button>
         </div>
@@ -989,6 +1152,11 @@
       <div class="sidebar-group">
         <span class="sidebar-group-title">Statistics</span>
         <span id="statsLabel" class="image-stats">0 Images Loaded</span>
+      </div>
+
+      <div class="sidebar-group">
+        <span class="sidebar-group-title">Tags Filter</span>
+        <div id="sidebarTags" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
       </div>
 
       <div class="sidebar-group">
@@ -1057,9 +1225,25 @@
       <div class="masonry-grid" id="imageGrid"></div>
     </main>
 
+    <!-- Global Info & Tag Overlay Interface -->
+    <div class="overlay-modal" id="infoOverlayModal">
+      <div class="overlay-modal-card">
+        <div class="overlay-header">
+          <h3 class="overlay-title">Details & Tags</h3>
+          <button class="overlay-close-btn" id="closeInfoOverlayBtn">&times;</button>
+        </div>
+        <div class="overlay-copy-row">
+          <input type="text" id="infoOverlayUrl" class="input-control" readonly />
+          <button class="btn btn-accent" id="infoOverlayCopyBtn">Copy</button>
+        </div>
+        <div>
+          <div class="tags-section-title" style="margin-bottom: 12px;">Tags</div>
+          <div class="tags-container" id="infoOverlayTagsContainer"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal" id="imageModal">
-      
-      <!-- Top Left Docked Bar (Emoji Only Play/Pause Button) -->
       <div class="modal-slideshow-bar" id="modalSlideshowBar">
         <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Toggle Auto Slideshow">
           <span id="slideshowIcon" style="display: flex; align-items: center; justify-content: center; fill: currentColor; width: 14px; height: 14px;">
@@ -1083,9 +1267,7 @@
         </select>
       </div>
 
-      <!-- Top Right Close Cross Button (Same 24px vertical top baseline) -->
       <button class="modal-close-btn" id="modalClose" title="Close Lightbox">&times;</button>
-
       <button class="modal-nav-btn modal-nav-prev" id="modalPrevBtn" title="Previous">‹</button>
       
       <div class="modal-viewer" id="modalViewer">
@@ -1095,6 +1277,7 @@
       <button class="modal-nav-btn modal-nav-next" id="modalNextBtn" title="Next">›</button>
 
       <div class="modal-bottom-actions" id="modalBottomActions">
+        <button class="action-btn info-btn" id="modalInfoBtn" title="Info & Tags">𝒊</button>
         <button class="action-btn fav-btn" id="modalFavBtn" title="Toggle Favorite">♡</button>
         <button class="action-btn" id="modalDownloadBtn" title="Download">↓</button>
         <button class="action-btn btn-danger" id="modalDeleteBtn" title="Delete" style="color: white; border: none;">🗑️</button>
@@ -1123,7 +1306,6 @@
       const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}`;
       const FIRESTORE_QUERY = `${FIRESTORE_BASE}?pageSize=1000&key=${API_KEY}`;
 
-      /* Transition Speed Configurations in Milliseconds */
       const TRANSITION_DURATION_MS = 420;
 
       const gridContainer = document.getElementById('imageGrid');
@@ -1169,9 +1351,16 @@
       const modalNextBtn = document.getElementById('modalNextBtn');
       
       const modalBottomActions = document.getElementById('modalBottomActions');
+      const modalInfoBtn = document.getElementById('modalInfoBtn');
       const modalFavBtn = document.getElementById('modalFavBtn');
       const modalDownloadBtn = document.getElementById('modalDownloadBtn');
       const modalDeleteBtn = document.getElementById('modalDeleteBtn');
+
+      const infoOverlayModal = document.getElementById('infoOverlayModal');
+      const closeInfoOverlayBtn = document.getElementById('closeInfoOverlayBtn');
+      const infoOverlayUrl = document.getElementById('infoOverlayUrl');
+      const infoOverlayCopyBtn = document.getElementById('infoOverlayCopyBtn');
+      const infoOverlayTagsContainer = document.getElementById('infoOverlayTagsContainer');
 
       const slideshowToggleBtn = document.getElementById('slideshowToggleBtn');
       const slideshowIcon = document.getElementById('slideshowIcon');
@@ -1183,6 +1372,8 @@
       const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
       const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
 
+      const DEFAULT_TAG = "Sexy"; 
+
       let allImages = [];
       let selectedUrls = new Set();
       let favorites = new Set();
@@ -1190,6 +1381,10 @@
       let allSelectedState = false;
       let ignoreScrollEvents = false;
       
+      let allTags = new Set();
+      let activeTagFilters = new Set();
+      const sidebarTagsContainer = document.getElementById('sidebarTags');
+
       let actionHistory = [];
       let currentHistoryIndex = -1;
       let currentModalIndex = -1;
@@ -1377,16 +1572,65 @@
         showNotification(`Exported ${successCount} images.`);
       }
 
+      function renderSidebarTags() {
+        sidebarTagsContainer.innerHTML = '';
+        const query = searchInput.value.trim().toLowerCase();
+
+        // Gather only tags from images visible in the main gallery
+        const visibleItems = getVisibleImages();
+        const visibleTags = new Set();
+        visibleItems.forEach(item => {
+          (item.tags || []).forEach(t => visibleTags.add(t));
+        });
+
+        // Ensure currently active tags stay in the list even while toggled
+        activeTagFilters.forEach(t => visibleTags.add(t));
+
+        // Sort alphabetically and apply search query filter
+        const sortedTags = Array.from(visibleTags)
+          .filter(tag => !query || tag.toLowerCase().includes(query))
+          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+        if (sortedTags.length === 0) {
+          sidebarTagsContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-muted);">No matching tags</span>';
+          return;
+        }
+        
+        sortedTags.forEach(tag => {
+          const tagEl = document.createElement('div');
+          tagEl.className = `sidebar-tag ${activeTagFilters.has(tag) ? 'active' : ''}`;
+          tagEl.textContent = tag;
+          tagEl.addEventListener('click', () => {
+            if (activeTagFilters.has(tag)) {
+              activeTagFilters.delete(tag);
+            } else {
+              activeTagFilters.add(tag);
+            }
+            renderGallery();
+            renderSidebarTags();
+          });
+          sidebarTagsContainer.appendChild(tagEl);
+        });
+      }
+
       function getVisibleImages() {
         const query = searchInput.value.trim().toLowerCase();
 
         return allImages
           .filter(item => {
             if (showFavoritesOnly && !favorites.has(item.url)) return false;
+            
+            if (activeTagFilters.size > 0) {
+              const itemTags = item.tags || [];
+              const hasAllActiveTags = Array.from(activeTagFilters).every(t => itemTags.includes(t));
+              if (!hasAllActiveTags) return false;
+            }
+
             if (!query) return true;
             const matchName = item.name && item.name.toLowerCase().includes(query);
             const matchUrl = item.url && item.url.toLowerCase().includes(query);
-            return matchName || matchUrl;
+            const matchTag = item.tags && item.tags.some(t => t.toLowerCase().includes(query));
+            return matchName || matchUrl || matchTag;
           })
           .sort((a, b) => {
             if (sortSelect.value === 'newest') return b.originalIndex - a.originalIndex;
@@ -1394,12 +1638,133 @@
           });
       }
 
+      async function updateFirestoreTags(item) {
+        try {
+          const patchUrl = `https://firestore.googleapis.com/v1/${item.id}?updateMask.fieldPaths=tags&key=${API_KEY}`;
+          await fetch(patchUrl, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              fields: { 
+                tags: { arrayValue: { values: item.tags.map(t => ({ stringValue: t })) } } 
+              } 
+            })
+          });
+        } catch (error) {
+          showNotification('Error saving tag data');
+        }
+      }
+
+      /* Global Info & Tag Overlay Logic */
+      let currentOverlayItem = null;
+
+      function renderOverlayContent() {
+        if (!currentOverlayItem) return;
+        infoOverlayUrl.value = currentOverlayItem.url;
+        infoOverlayTagsContainer.innerHTML = '';
+
+        (currentOverlayItem.tags || []).forEach(t => {
+          const badge = document.createElement('span');
+          badge.className = 'tag-badge';
+
+          const textSpan = document.createElement('span');
+          textSpan.textContent = t;
+
+          const removeBtn = document.createElement('span');
+          removeBtn.className = 'tag-remove';
+          removeBtn.innerHTML = '&times;';
+          removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentOverlayItem.tags = currentOverlayItem.tags.filter(tag => tag !== t);
+            renderOverlayContent();
+            updateFirestoreTags(currentOverlayItem);
+          });
+
+          badge.appendChild(textSpan);
+          badge.appendChild(removeBtn);
+          infoOverlayTagsContainer.appendChild(badge);
+        });
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'add-tag-btn';
+        addBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5" ry="5"/><path d="M12 8v8m-4-4h8"/></svg> Add tag`;
+
+        const tagInputBox = document.createElement('input');
+        tagInputBox.className = 'input-control';
+        tagInputBox.style.padding = '8px 14px';
+        tagInputBox.style.display = 'none';
+        tagInputBox.style.width = '140px';
+        tagInputBox.style.fontSize = '14px';
+        tagInputBox.placeholder = 'Tag name...';
+
+        addBtn.addEventListener('click', () => {
+          addBtn.style.display = 'none';
+          tagInputBox.style.display = 'inline-block';
+          tagInputBox.focus();
+        });
+
+        const saveNewTag = async () => {
+          const newTag = tagInputBox.value.trim();
+          if (newTag && (!currentOverlayItem.tags || !currentOverlayItem.tags.includes(newTag))) {
+            if (!currentOverlayItem.tags) currentOverlayItem.tags = [];
+            currentOverlayItem.tags.push(newTag);
+            allTags.add(newTag);
+            renderOverlayContent();
+            renderSidebarTags();
+            updateFirestoreTags(currentOverlayItem);
+          } else {
+            addBtn.style.display = 'inline-flex';
+            tagInputBox.style.display = 'none';
+            tagInputBox.value = '';
+          }
+        };
+
+        tagInputBox.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') saveNewTag();
+          else if (e.key === 'Escape') {
+            addBtn.style.display = 'inline-flex';
+            tagInputBox.style.display = 'none';
+            tagInputBox.value = '';
+          }
+        });
+
+        tagInputBox.addEventListener('blur', () => {
+          setTimeout(saveNewTag, 100);
+        });
+
+        infoOverlayTagsContainer.appendChild(addBtn);
+        infoOverlayTagsContainer.appendChild(tagInputBox);
+      }
+
+      function openInfoOverlay(item) {
+        currentOverlayItem = item;
+        renderOverlayContent();
+        infoOverlayModal.classList.add('open');
+      }
+
+      function closeInfoOverlay() {
+        infoOverlayModal.classList.remove('open');
+        currentOverlayItem = null;
+      }
+
+      closeInfoOverlayBtn.addEventListener('click', closeInfoOverlay);
+      infoOverlayModal.addEventListener('click', (e) => {
+        if (e.target === infoOverlayModal) closeInfoOverlay();
+      });
+      infoOverlayCopyBtn.addEventListener('click', () => {
+        if (currentOverlayItem) {
+          navigator.clipboard.writeText(currentOverlayItem.url).catch(() => {});
+          showNotification('URL Copied!', true);
+        }
+      });
+
       function renderGallery() {
         gridContainer.innerHTML = '';
         const visibleItems = getVisibleImages();
         statsLabel.textContent = `${allImages.length} Image${allImages.length === 1 ? '' : 's'} Stored`;
 
         updateSelectionState();
+        renderSidebarTags();
 
         if (visibleItems.length === 0) {
           gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1 / -1; color: var(--text-muted); padding: 50px; font-weight: 500;">No images match your query.</div>';
@@ -1452,8 +1817,23 @@
             toggleFavorite(item, true);
           });
 
+          const infoBtn = document.createElement('button');
+          infoBtn.className = 'action-btn info-btn';
+          infoBtn.title = 'Info & Tags';
+          infoBtn.innerHTML = '𝒊';
+          infoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openInfoOverlay(item);
+          });
+
+          const topActionsRight = document.createElement('div');
+          topActionsRight.style.display = 'flex';
+          topActionsRight.style.gap = '8px';
+          topActionsRight.appendChild(infoBtn);
+          topActionsRight.appendChild(favBtn);
+
           topRow.appendChild(tickBtn);
-          topRow.appendChild(favBtn);
+          topRow.appendChild(topActionsRight);
 
           const bottomRow = document.createElement('div');
           bottomRow.className = 'overlay-bottom';
@@ -1471,25 +1851,37 @@
           overlay.appendChild(topRow);
           overlay.appendChild(bottomRow);
 
-          const copyUrlHandler = (e) => {
+          /* Right click / Long press toggle buttons instead of URL copy */
+          const toggleCardButtonsVisibility = (e) => {
             e.preventDefault();
-            navigator.clipboard.writeText(item.url).catch(() => {});
-            showNotification(`Copied: ${item.url}`, true, 3000);
+            e.stopPropagation();
+            card.classList.toggle('buttons-pinned');
           };
 
-          card.addEventListener('contextmenu', copyUrlHandler);
+          card.addEventListener('contextmenu', toggleCardButtonsVisibility);
 
           let touchTimer = null;
+          let isLongPress = false;
           card.addEventListener('touchstart', (e) => {
+            isLongPress = false;
             touchTimer = setTimeout(() => {
-              copyUrlHandler(e);
-            }, 600);
-          }, { passive: true });
+              isLongPress = true;
+              toggleCardButtonsVisibility(e);
+            }, 500);
+          }, { passive: false });
 
-          card.addEventListener('touchend', () => clearTimeout(touchTimer));
+          card.addEventListener('touchend', (e) => {
+            clearTimeout(touchTimer);
+            if (isLongPress) {
+              e.preventDefault();
+            }
+          });
           card.addEventListener('touchmove', () => clearTimeout(touchTimer));
 
-          card.addEventListener('click', () => openPopupByIndex(index));
+          card.addEventListener('click', (e) => {
+            if (isLongPress) return;
+            openPopupByIndex(index);
+          });
 
           card.appendChild(img);
           card.appendChild(overlay);
@@ -1623,6 +2015,7 @@
       searchInput.addEventListener('input', () => {
         clearSearchBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
         renderGallery();
+        renderSidebarTags();
       });
 
       clearSearchBtn.addEventListener('click', () => {
@@ -1630,6 +2023,7 @@
         clearSearchBtn.style.display = 'none';
         searchInput.focus();
         renderGallery();
+        renderSidebarTags();
       });
 
       sortSelect.addEventListener('change', renderGallery);
@@ -1665,7 +2059,8 @@
                 fields: {
                   str: { stringValue: url },
                   date: { timestampValue: new Date().toISOString() },
-                  favorite: { booleanValue: isFav }
+                  favorite: { booleanValue: isFav },
+                  tags: { arrayValue: { values: [{ stringValue: DEFAULT_TAG }] } }
                 }
               };
 
@@ -1702,7 +2097,8 @@
               fields: {
                 str: { stringValue: item.url },
                 date: { timestampValue: new Date().toISOString() },
-                favorite: { booleanValue: isFav }
+                favorite: { booleanValue: isFav },
+                tags: { arrayValue: { values: (item.tags || [DEFAULT_TAG]).map(t => ({ stringValue: t })) } }
               }
             };
 
@@ -1714,7 +2110,6 @@
               });
               const data = await res.json();
               
-              // Use the newly assigned Firestore document path/ID
               const restored = { ...item, id: data.name };
               restoredItems.push(restored);
               allImages.push(restored);
@@ -1724,7 +2119,6 @@
             }
           }
 
-          // Keep action history synced with the active Firestore IDs
           action.items = restoredItems;
           renderGallery();
         } else if (action.type === 'favorite') {
@@ -1737,7 +2131,6 @@
           updateHistoryButtons();
           renderGallery();
 
-          // Resolve the current ID in case it was regenerated during an earlier undo
           const currentDoc = allImages.find(img => img.url === action.url) || action.item;
           if (currentDoc && currentDoc.id) {
             try {
@@ -1850,7 +2243,6 @@
         modalBottomActions.classList.remove('hidden');
         updateModalFavUI();
         
-        // Push a state so the mobile back button triggers popstate instead of exiting the page
         if (!imageModal.classList.contains('open')) {
           history.pushState({ modalOpen: true }, '');
         }
@@ -1904,7 +2296,7 @@
             modalImg.classList.add('anim-zoom-out');
           }
 
-          void modalImg.offsetWidth; // Force Reflow
+          void modalImg.offsetWidth;
 
           modalImg.style.transition = `transform var(--transition-speed) var(--transition-easing), opacity var(--transition-speed) var(--transition-easing)`;
           clearTransitionClasses();
@@ -1933,7 +2325,6 @@
       function startSlideshow() {
         isSlideshowPlaying = true;
         slideshowToggleBtn.classList.add('active');
-        // Two white bars for Pause
         slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
 
         clearInterval(slideshowTimer);
@@ -1946,7 +2337,6 @@
       function stopSlideshow() {
         isSlideshowPlaying = false;
         slideshowToggleBtn.classList.remove('active');
-        // Single white play triangle
         slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
         clearInterval(slideshowTimer);
       }
@@ -2047,7 +2437,6 @@
             updateImageTransform(false);
           } else {
             e.preventDefault();
-            // Apply translation along the dominant axis during drag
             if (Math.abs(diffX) >= Math.abs(diffY)) {
               modalImg.style.transform = `translateX(${diffX * 0.75}px)`;
             } else {
@@ -2071,11 +2460,9 @@
             const finalY = (touchEnd ? touchEnd.clientY : 0) - startTouchY;
 
             if (Math.abs(finalX) >= Math.abs(finalY)) {
-              // Horizontal swipe
               if (finalX < 0) showNextImage();
               else showPrevImage();
             } else {
-              // Vertical swipe: swipe up = next, swipe down = prev
               if (finalY < 0) showNextImage();
               else showPrevImage();
             }
@@ -2182,6 +2569,14 @@
         showPrevImage();
       });
 
+      modalInfoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const visible = getVisibleImages();
+        if (visible.length && currentModalIndex >= 0) {
+          openInfoOverlay(visible[currentModalIndex]);
+        }
+      });
+
       modalFavBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const visible = getVisibleImages();
@@ -2220,7 +2615,6 @@
         clearTransitionClasses();
         imageModal.classList.remove('open');
 
-        // If closed by tapping the screen (not the back button), revert the history entry
         if (!fromPopState && history.state && history.state.modalOpen) {
           history.back();
         }
@@ -2239,6 +2633,12 @@
       });
 
       document.addEventListener('keydown', (e) => {
+        if (infoOverlayModal.classList.contains('open')) {
+          if (e.key === 'Escape') {
+            closeInfoOverlay();
+            return;
+          }
+        }
         if (imageModal.classList.contains('open')) {
           if (e.key === ' ' || e.code === 'Space') {
             e.preventDefault();
@@ -2265,21 +2665,30 @@
             gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
             return;
           }
-
+          
           allImages = docs.map((doc, index) => {
             const fields = doc.fields || {};
             const url = fields.str ? fields.str.stringValue : '';
             const favorite = fields.favorite ? fields.favorite.booleanValue : false;
+            let tags = fields.tags?.arrayValue?.values?.map(v => v.stringValue) || [];
+
+            if (!tags.includes(DEFAULT_TAG)) {
+              tags.unshift(DEFAULT_TAG);
+            }
+
             if (favorite) favorites.add(url);
+            tags.forEach(t => allTags.add(t));
 
             return {
               id: doc.name, 
               url: url,
               name: sanitizeFilename(url), 
-              originalIndex: index
+              originalIndex: index,
+              tags: tags
             };
           });
 
+          renderSidebarTags();
           renderGallery();
         })
         .catch(err => {
@@ -2289,25 +2698,26 @@
         const galleryTitleBtn = document.getElementById('galleryTitleBtn');
 
         galleryTitleBtn.addEventListener('click', () => {
-          // Ensure the sticky header is visible if hidden by scroll direction
           staticTop.classList.remove('header-hidden', 'header-scrolled');
           headerRevealBtn.classList.remove('visible');
 
-          // Jump immediately to the top of the container
           mainContent.scrollTo({
             top: 0,
-            behavior: 'auto' // Change to 'auto' for an instant jump
+            behavior: 'auto'
           });
         });
 
         window.addEventListener('popstate', (e) => {
-        if (imageModal.classList.contains('open')) {
-          closeModal(true);
-        }
-        if (confirmOverlay.classList.contains('open')) {
-          confirmOverlay.classList.remove('open');
-        }
-      });
+          if (infoOverlayModal.classList.contains('open')) {
+            closeInfoOverlay();
+          }
+          if (imageModal.classList.contains('open')) {
+            closeModal(true);
+          }
+          if (confirmOverlay.classList.contains('open')) {
+            confirmOverlay.classList.remove('open');
+          }
+        });
     </script>
 </body>
 </html>
