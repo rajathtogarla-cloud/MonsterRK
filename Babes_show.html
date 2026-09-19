@@ -71,6 +71,91 @@
         -moz-osx-font-smoothing: grayscale;
       }
 
+      /* Authentication UI[cite: 1, 2] */
+      #auth-wrapper {
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        height: 100vh;
+        width: 100vw;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: var(--bg-color);
+        z-index: 9999;
+      }
+
+      .auth-card {
+        max-width: 400px;
+        width: 100%;
+        margin: 40px auto;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+      }
+
+      .auth-card h2 { 
+        margin: 0 0 24px 0; 
+        background: var(--accent-grad); 
+        -webkit-background-clip: text; 
+        background-clip: text; 
+        color: transparent; 
+        text-align: center; 
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      .auth-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--control-bg);
+        color: var(--text-color);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        outline: none;
+        font-family: inherit;
+        font-size: 14px;
+        transition: all 0.25s ease;
+      }
+
+      .auth-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      }
+
+      .auth-btn {
+        width: 100%;
+        background: var(--accent-grad);
+        color: #ffffff;
+        border: none;
+        padding: 12px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 15px var(--accent-glow);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .auth-btn:hover { 
+        opacity: 0.95; 
+        transform: translateY(-2px);
+      }
+
+      .error-msg { 
+        color: #ef4444; 
+        font-size: 0.85rem; 
+        margin-bottom: 16px; 
+        text-align: center; 
+        font-weight: 500;
+      }
+
+      .hidden { display: none !important; }
+
       .sidebar {
         width: 280px;
         background: var(--sidebar-bg);
@@ -232,8 +317,7 @@
       }
 
       .static-top {
-        position: relative; /* Changed from sticky */
-        /* top: 0; (Remove this line) */
+        position: relative;
         z-index: 100;
         background: var(--bg-color);
         -webkit-backdrop-filter: blur(12px);
@@ -246,7 +330,6 @@
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
       }
 
-      /* Add this new class right below */
       .static-top.is-sticky {
         position: sticky;
         top: 0;
@@ -262,15 +345,15 @@
 
       .header-reveal-btn {
         position: fixed;
-        top: 0; /* Anchored to the exact top edge */
+        top: 0;
         left: 50%;
         transform: translateX(-50%) translateY(-80px) scale(0.8);
         z-index: 1060;
-        width: 50px; /* Wider to act as a tab */
-        height: 30px; /* Slimmer profile so it doesn't block content */
-        border-radius: 0 0 16px 16px; /* Flat on top, rounded on the bottom */
+        width: 50px;
+        height: 30px;
+        border-radius: 0 0 16px 16px;
         border: 1px solid var(--card-border);
-        border-top: none; /* Seamless connection to the screen edge */
+        border-top: none;
         background: var(--sidebar-bg);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
         cursor: pointer;
@@ -405,7 +488,7 @@
 
       .btn-icon {
         padding: 10px 14px;
-        font-size: 16px;
+        font-size: 17px;
       }
 
       .sidebar .btn {
@@ -573,7 +656,6 @@
         transform: translateY(0);
       }
 
-      /* Explicitly hide buttons when toggled off via long press */
       .masonry-item.buttons-hidden .classic-blue-tick,
       .masonry-item.buttons-hidden .action-btn {
         opacity: 0 !important;
@@ -618,7 +700,6 @@
         color: #ffffff;
       }
 
-      /* OVERLAY INFO & TAG INTERFACE */
       .overlay-modal {
         display: none;
         position: fixed;
@@ -959,8 +1040,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        position: absolute; /* Detaches from the flex container's padding */
-        inset: 0;           /* Forces the container to the absolute screen edges */
+        position: absolute; 
+        inset: 0;           
         width: 100vw;
         height: 100vh;
         overflow: hidden;
@@ -1156,6 +1237,17 @@
 </head>
 <body>
 
+    <!-- Authentication Container -->
+    <div id="auth-wrapper">
+      <div class="auth-card">
+        <h2>Studio Login ✦</h2>
+        <div id="error-message" class="error-msg"></div>
+        <input type="email" id="email" class="auth-input" placeholder="Email address" required>
+        <input type="password" id="password" class="auth-input" placeholder="Password" required>
+        <button id="loginBtn" class="auth-btn">Sign In</button>
+      </div>
+    </div>
+
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
     <aside class="sidebar collapsed" id="sidebar">
@@ -1225,6 +1317,8 @@
             <div style="display: flex; gap: 6px; margin-left: 8px;">
               <button id="undoBtn" class="btn btn-icon" disabled title="Undo Action">↶</button>
               <button id="redoBtn" class="btn btn-icon" disabled title="Redo Action">↷</button>
+              <!-- Logout Button -->
+              <button id="logoutBtn" class="btn btn-icon" title="Logout" style="color: #ef4444;">💔</button>
             </div>
           </div>
         </header>
@@ -1344,7 +1438,10 @@
 
     <datalist id="allTagsDatalist"></datalist>
 
-    <script>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
       const PROJECT_ID = "monster-rk";
       const API_KEY = "AIzaSyDNXuf7O3nepPVyM43TgAXxnkGw5gpKd3s";
       const COLLECTION_NAME = "images";
@@ -1352,6 +1449,69 @@
       const FIRESTORE_PAGE_SIZE = 300;
 
       const TRANSITION_DURATION_MS = 420;
+
+      // Initialize Firebase for Authentication
+      const firebaseConfig = {
+        apiKey: API_KEY,
+        authDomain: `${PROJECT_ID}.firebaseapp.com`,
+        projectId: PROJECT_ID
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+
+      // Authentication Logic Nodes
+      const authWrapper = document.getElementById("auth-wrapper");
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+      const loginBtn = document.getElementById("loginBtn");
+      const errorMessage = document.getElementById("error-message");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      // Core layout elements to hide/show
+      const layoutElements = [
+          document.getElementById("sidebar"),
+          document.getElementById("mainContent"),
+          document.getElementById("headerRevealBtn")
+      ];
+
+      // Firebase Authentication State Listener
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            authWrapper.classList.add("hidden");
+            layoutElements.forEach(el => el && el.classList.remove("hidden"));
+            // Trigger gallery data fetch only after successful authentication
+            initializeGalleryData();
+        } else {
+            authWrapper.classList.remove("hidden");
+            layoutElements.forEach(el => el && el.classList.add("hidden"));
+            emailInput.value = '';
+            passwordInput.value = '';
+            errorMessage.textContent = '';
+        }
+      });
+
+      loginBtn.addEventListener("click", async () => {
+          errorMessage.textContent = "";
+          const email = emailInput.value.trim();
+          const password = passwordInput.value;
+          
+          try {
+            await signInWithEmailAndPassword(auth, email, password);
+          } catch (error) {
+            errorMessage.textContent = error.message;
+          }
+      });
+
+      if (logoutBtn) {
+          logoutBtn.addEventListener("click", async () => {
+              try {
+                  await signOut(auth);
+              } catch (error) {
+                  console.error("Error signing out:", error);
+              }
+          });
+      }
 
       const gridContainer = document.getElementById('imageGrid');
       const loadingMessage = document.getElementById('loadingMessage');
@@ -1421,7 +1581,7 @@
       const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
       const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
 
-      const DEFAULT_TAG = null; // sexy, normal 
+      const DEFAULT_TAG = null;
 
       let allImages = [];
       let selectedUrls = new Set();
@@ -1470,7 +1630,6 @@
         const currentY = mainContent.scrollTop;
         const delta = currentY - lastScrollY;
         
-        // Calculate the exact height of the header dynamically
         const headerHeight = staticTop.offsetHeight;
 
         if (currentY > 15) {
@@ -1480,7 +1639,6 @@
         }
 
         if (Math.abs(delta) > 8) {
-          // Use headerHeight instead of the hardcoded 100
           if (delta > 0 && currentY > headerHeight) {
             staticTop.classList.add('header-hidden');
             headerRevealBtn.classList.remove('visible');
@@ -1495,7 +1653,6 @@
           lastScrollY = currentY;
         }
 
-        // Fully release the sticky state when hitting the absolute top for a seamless 1:1 reset
         if (currentY <= 0) {
           staticTop.classList.remove('is-sticky');
         }
@@ -1503,10 +1660,7 @@
 
       headerRevealBtn.addEventListener('click', () => {
         staticTop.classList.add('is-sticky');
-        
-        // Force the browser to apply the hidden state before transitioning
         void staticTop.offsetWidth; 
-        
         staticTop.classList.remove('header-hidden');
         headerRevealBtn.classList.remove('visible');
       });
@@ -1553,29 +1707,20 @@
 
       function sanitizeFilename(url, suggestedName) {
         try {
-          // 1. Remove the http:// or https:// protocol
           let cleanName = url.replace(/^https?:\/\//i, '');
-          
-          // 2. Replace slashes, queries, and illegal OS characters with hyphens
           cleanName = cleanName.replace(/[\/\\?%*:|"<>]/g, '-');
-          
-          // 3. Remove consecutive duplicate hyphens to keep it readable
           cleanName = cleanName.replace(/-+/g, '-');
           
-          // 4. Truncate to prevent OS file length errors (keep the end where the extension is)
           if (cleanName.length > 200) {
             cleanName = cleanName.substring(cleanName.length - 200);
           }
 
-          // 5. Ensure it has a valid image extension, otherwise append .jpg
           if (!/\.(jpg|jpeg|png|webp|gif|svg|bmp)$/i.test(cleanName)) {
-            // Clean up any trailing hyphens before appending
             cleanName = cleanName.replace(/-$/, '') + '.jpg';
           }
 
           return cleanName;
         } catch (e) {
-          // Fallback if the URL fails to parse entirely
           return `image_${Date.now()}.jpg`;
         }
       }
@@ -1596,7 +1741,6 @@
         }, 1500);
       }
 
-      // 1. Direct fetch only (with a 5s safety timeout so it never hangs)
       async function fetchImageBlob(url) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -1616,7 +1760,6 @@
         }
       }
 
-      // 2. Single image download: Downloads directly or opens tab if CORS-blocked
       async function downloadSingleImage(url, name) {
         showNotification('Downloading image...');
         const filename = sanitizeFilename(url, name);
@@ -1637,7 +1780,6 @@
         }
       }
 
-      // 3. Batch ZIP download: Direct fetch only, fails fast, outputs ZIP + failed URLs JSON
       async function downloadZipArchive(itemsToDownload, zipFilename = 'gallery-collection.zip') {
         if (!itemsToDownload || itemsToDownload.length === 0) return;
 
@@ -1646,7 +1788,7 @@
         const zip = new JSZip();
         let successCount = 0;
         const failedItems = [];
-        const batchSize = 15; // Increased to 15 concurrent downloads since there are no proxy rate-limits
+        const batchSize = 15;
 
         for (let i = 0; i < itemsToDownload.length; i += batchSize) {
           const batch = itemsToDownload.slice(i, i + batchSize);
@@ -1672,7 +1814,6 @@
           await Promise.allSettled(batchPromises);
         }
 
-        // Download successful images in a ZIP
         if (successCount > 0) {
           showNotification(`Packaging zip archive of ${successCount} files...`);
           const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
@@ -1682,7 +1823,6 @@
           showNotification('All chosen images were blocked by their origin servers.');
         }
 
-        // Download failed URLs as JSON
         if (failedItems.length > 0) {
           setTimeout(async () => {
             showNotification(`Saving list of ${failedItems.length} failed link(s)...`);
@@ -1697,17 +1837,14 @@
         sidebarTagsContainer.innerHTML = '';
         const query = searchInput.value.trim().toLowerCase();
 
-        // Gather only tags from images visible in the main gallery
         const visibleItems = getVisibleImages();
         const visibleTags = new Set();
         visibleItems.forEach(item => {
           (item.tags || []).forEach(t => visibleTags.add(t));
         });
 
-        // Ensure currently active tags stay in the list even while toggled
         activeTagFilters.forEach(t => visibleTags.add(t));
 
-        // Sort alphabetically and apply search query filter
         const sortedTags = Array.from(visibleTags)
           .filter(tag => !query || tag.toLowerCase().includes(query))
           .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
@@ -1750,7 +1887,6 @@
 
         return allImages
           .filter(item => {
-            // Apply Status Filter (allows both when 'all' is active)
             if (currentStatusFilter !== 'all') {
               const itemStatus = (item.status || 'unfiltered').toLowerCase();
               if (itemStatus !== currentStatusFilter) return false;
@@ -1794,7 +1930,6 @@
         }
       }
 
-      /* Global Info & Tag Overlay Logic */
       let currentOverlayItem = null;
 
       function renderOverlayContent() {
@@ -1816,7 +1951,6 @@
             e.stopPropagation();
             currentOverlayItem.tags = currentOverlayItem.tags.filter(tag => tag !== t);
 
-            // Clean up tag from overall list if no longer used by any image
             const stillInUse = allImages.some(img => (img.tags || []).includes(t));
             if (!stillInUse) {
               allTags.delete(t);
@@ -1846,7 +1980,6 @@
         tagInputBox.style.fontSize = '14px';
         tagInputBox.placeholder = 'Tag name...';
         
-        // Link autocomplete datalist
         tagInputBox.setAttribute('list', 'allTagsDatalist');
         tagInputBox.setAttribute('autocomplete', 'off');
 
@@ -2006,7 +2139,6 @@
           overlay.appendChild(topRow);
           overlay.appendChild(bottomRow);
 
-          /* Right click / Long press: hide buttons if visible, show them if hidden */
           const toggleCardButtonsVisibility = (e) => {
             if (e) {
               e.preventDefault();
@@ -2017,11 +2149,9 @@
             const isVisible = sampleBtn && window.getComputedStyle(sampleBtn).opacity !== '0';
 
             if (isVisible) {
-              // If buttons are currently visible (via hover, pinned, etc.), hide them
               card.classList.remove('buttons-pinned');
               card.classList.add('buttons-hidden');
             } else {
-              // If buttons are hidden, display them
               card.classList.remove('buttons-hidden');
               card.classList.add('buttons-pinned');
             }
@@ -2187,17 +2317,14 @@
 
       statusFilterBtn.addEventListener('click', () => {
         if (currentStatusFilter === 'all') {
-          // Switch to Filtered
           currentStatusFilter = 'filtered';
           statusFilterBtn.textContent = '👅';
           statusFilterBtn.title = 'Showing Filtered Only (Click for Unfiltered)';
         } else if (currentStatusFilter === 'filtered') {
-          // Switch to Unfiltered
           currentStatusFilter = 'unfiltered';
           statusFilterBtn.textContent = '💦';
           statusFilterBtn.title = 'Showing Unfiltered Only (Click for All)';
         } else {
-          // Switch back to All
           currentStatusFilter = 'all';
           statusFilterBtn.textContent = '❤️';
           statusFilterBtn.title = 'Showing All Images (Click for Filtered)';
@@ -2801,7 +2928,7 @@
         const visible = getVisibleImages();
         if (visible.length && currentModalIndex >= 0) {
           const targetUrl = visible[currentModalIndex].url;
-          closeModal(); // Cleans up slideshow, transitions, and pops the history state cleanly
+          closeModal(); 
           selectedUrls.clear();
           selectedUrls.add(targetUrl);
           updateSelectionState();
@@ -2893,73 +3020,75 @@
         return docs;
       }
 
-      fetchAllFirestoreDocuments()
-        .then(docs => {
-          loadingMessage.style.display = 'none';
-          if (docs.length === 0) {
-            gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
-            return;
-          }
-
-          allImages = docs.map((doc, index) => {
-            const fields = doc.fields || {};
-            const url = fields.str ? fields.str.stringValue : '';
-            const status = fields.status ? fields.status.stringValue.toLowerCase() : 'unfiltered';
-            const favorite = fields.favorite ? fields.favorite.booleanValue : false;
-            let tags = fields.tags?.arrayValue?.values?.map(v => v.stringValue) || [];
-
-            if (DEFAULT_TAG && !tags.includes(DEFAULT_TAG)) {
-              tags.unshift(DEFAULT_TAG);
+      function initializeGalleryData() {
+        fetchAllFirestoreDocuments()
+          .then(docs => {
+            loadingMessage.style.display = 'none';
+            if (docs.length === 0) {
+              gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
+              return;
             }
 
-            if (favorite) favorites.add(url);
-            tags.forEach(t => allTags.add(t));
+            allImages = docs.map((doc, index) => {
+              const fields = doc.fields || {};
+              const url = fields.str ? fields.str.stringValue : '';
+              const status = fields.status ? fields.status.stringValue.toLowerCase() : 'unfiltered';
+              const favorite = fields.favorite ? fields.favorite.booleanValue : false;
+              let tags = fields.tags?.arrayValue?.values?.map(v => v.stringValue) || [];
 
-            const rawDate = fields.date?.timestampValue || doc.createTime;
-            const timestamp = rawDate ? new Date(rawDate).getTime() : index;
+              if (DEFAULT_TAG && !tags.includes(DEFAULT_TAG)) {
+                tags.unshift(DEFAULT_TAG);
+              }
 
-            return {
-              id: doc.name, 
-              url: url,
-              status: status,
-              name: sanitizeFilename(url), 
-              originalIndex: index,
-              timestamp: isNaN(timestamp) ? index : timestamp,
-              tags: tags
-            };
+              if (favorite) favorites.add(url);
+              tags.forEach(t => allTags.add(t));
+
+              const rawDate = fields.date?.timestampValue || doc.createTime;
+              const timestamp = rawDate ? new Date(rawDate).getTime() : index;
+
+              return {
+                id: doc.name, 
+                url: url,
+                status: status,
+                name: sanitizeFilename(url), 
+                originalIndex: index,
+                timestamp: isNaN(timestamp) ? index : timestamp,
+                tags: tags
+              };
+            });
+            updateTagDatalist();
+            renderSidebarTags();
+            renderGallery();
+          })
+          .catch(err => {
+            console.error(err);
+            loadingMessage.textContent = 'Could not fetch gallery items.';
           });
-          updateTagDatalist();
-          renderSidebarTags();
-          renderGallery();
-        })
-        .catch(err => {
-          console.error(err);
-          loadingMessage.textContent = 'Could not fetch gallery items.';
+      }
+
+      const galleryTitleBtn = document.getElementById('galleryTitleBtn');
+
+      galleryTitleBtn.addEventListener('click', () => {
+        staticTop.classList.remove('header-hidden', 'header-scrolled', 'is-sticky'); 
+        headerRevealBtn.classList.remove('visible');
+
+        mainContent.scrollTo({
+          top: 0,
+          behavior: 'auto'
         });
+      });
 
-        const galleryTitleBtn = document.getElementById('galleryTitleBtn');
-
-        galleryTitleBtn.addEventListener('click', () => {
-          staticTop.classList.remove('header-hidden', 'header-scrolled', 'is-sticky'); // Added 'is-sticky'
-          headerRevealBtn.classList.remove('visible');
-
-          mainContent.scrollTo({
-            top: 0,
-            behavior: 'auto'
-          });
-        });
-
-        window.addEventListener('popstate', () => {
-          if (infoOverlayModal.classList.contains('open')) {
-            closeInfoOverlay();
-          }
-          if (confirmOverlay.classList.contains('open')) {
-            confirmOverlay.classList.remove('open');
-          }
-          if (imageModal.classList.contains('open')) {
-            closeModal(true);
-          }
-        });
+      window.addEventListener('popstate', () => {
+        if (infoOverlayModal.classList.contains('open')) {
+          closeInfoOverlay();
+        }
+        if (confirmOverlay.classList.contains('open')) {
+          confirmOverlay.classList.remove('open');
+        }
+        if (imageModal.classList.contains('open')) {
+          closeModal(true);
+        }
+      });
     </script>
 </body>
 </html>
