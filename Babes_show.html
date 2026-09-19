@@ -1596,23 +1596,27 @@
         }, 1500);
       }
 
-      // 1. Add this new helper function above downloadSingleImage
+      // 1. Direct fetch only (with a 5s safety timeout so it never hangs)
       async function fetchImageBlob(url) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
         try {
-          // Attempt 1: Direct fetch
-          const response = await fetch(url, { referrerPolicy: 'no-referrer', mode: 'cors' });
-          if (!response.ok) throw new Error('Direct fetch failed');
+          const response = await fetch(url, { 
+            referrerPolicy: 'no-referrer', 
+            mode: 'cors',
+            signal: controller.signal 
+          });
+          clearTimeout(timeoutId);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return await response.blob();
-        } catch (error) {
-          // Attempt 2: Proxy fallback to bypass CORS (Fixes Pinterest, etc.)
-          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-          const response = await fetch(proxyUrl, { referrerPolicy: 'no-referrer', mode: 'cors' });
-          if (!response.ok) throw new Error('Proxy fetch failed');
-          return await response.blob();
+        } catch (err) {
+          clearTimeout(timeoutId);
+          throw err;
         }
       }
 
-      // 2. Replace your existing downloadSingleImage function
+      // 2. Single image download: Downloads directly or opens tab if CORS-blocked
       async function downloadSingleImage(url, name) {
         showNotification('Downloading image...');
         const filename = sanitizeFilename(url, name);
@@ -1629,44 +1633,64 @@
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          showNotification('Opened image in a new tab (Download restricted by site).');
+          showNotification('Direct download blocked by site. Opened in new tab.');
         }
       }
 
-      // 3. Replace your existing downloadZipArchive function
+      // 3. Batch ZIP download: Direct fetch only, fails fast, outputs ZIP + failed URLs JSON
       async function downloadZipArchive(itemsToDownload, zipFilename = 'gallery-collection.zip') {
         if (!itemsToDownload || itemsToDownload.length === 0) return;
-        if (itemsToDownload.length === 1) {
-          downloadSingleImage(itemsToDownload[0].url, itemsToDownload[0].name);
-          return;
-        }
 
-        showNotification(`Archiving ${itemsToDownload.length} files...`, false, 6000);
+        showNotification(`Preparing to process ${itemsToDownload.length} image(s)...`, false, 3000);
+
         const zip = new JSZip();
         let successCount = 0;
+        const failedItems = [];
+        const batchSize = 15; // Increased to 15 concurrent downloads since there are no proxy rate-limits
 
-        const downloadPromises = itemsToDownload.map(async (item, i) => {
-          const filename = sanitizeFilename(item.url, item.name || `image_${i + 1}`);
-          try {
-            const blob = await fetchImageBlob(item.url);
-            zip.file(filename, blob);
-            successCount++;
-          } catch (error) { 
-            console.warn('Failed to archive image:', item.url);
-          }
-        });
+        for (let i = 0; i < itemsToDownload.length; i += batchSize) {
+          const batch = itemsToDownload.slice(i, i + batchSize);
+          const currentCount = Math.min(i + batchSize, itemsToDownload.length);
+          showNotification(`Processing ${currentCount} / ${itemsToDownload.length}...`, false, 10000);
 
-        await Promise.allSettled(downloadPromises);
+          const batchPromises = batch.map(async (item, index) => {
+            const filename = sanitizeFilename(item.url, item.name || `image_${i + index + 1}`);
+            try {
+              const blob = await fetchImageBlob(item.url);
+              zip.file(filename, blob);
+              successCount++;
+            } catch (error) {
+              console.warn('Direct fetch failed for:', item.url);
+              failedItems.push({
+                url: item.url,
+                expectedFilename: filename,
+                reason: error.name === 'AbortError' ? 'Timeout (5s exceeded)' : 'Blocked by CORS / Network error'
+              });
+            }
+          });
 
-        if (successCount === 0) {
-          showNotification('Network restrictions prevented downloading these images.');
-          return;
+          await Promise.allSettled(batchPromises);
         }
 
-        showNotification('Compiling zip archive...');
-        const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
-        await triggerSafeFileDownload(zipBlob, zipFilename);
-        showNotification(`Exported ${successCount} images.`);
+        // Download successful images in a ZIP
+        if (successCount > 0) {
+          showNotification(`Packaging zip archive of ${successCount} files...`);
+          const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
+          await triggerSafeFileDownload(zipBlob, zipFilename);
+          showNotification(`Exported ${successCount} images successfully.`);
+        } else {
+          showNotification('All chosen images were blocked by their origin servers.');
+        }
+
+        // Download failed URLs as JSON
+        if (failedItems.length > 0) {
+          setTimeout(async () => {
+            showNotification(`Saving list of ${failedItems.length} failed link(s)...`);
+            const failedJsonStr = JSON.stringify(failedItems, null, 2);
+            const failedBlob = new Blob([failedJsonStr], { type: 'application/json' });
+            await triggerSafeFileDownload(failedBlob, `failed-downloads-${Date.now()}.json`);
+          }, 1200);
+        }
       }
 
       function renderSidebarTags() {
