@@ -532,7 +532,7 @@
         flex-direction: column;
         justify-content: space-between;
         padding: 14px;
-        background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.5) 100%);
+        background: none;
       }
 
       .overlay-top, .overlay-bottom {
@@ -563,6 +563,14 @@
       .masonry-item.buttons-pinned .action-btn {
         opacity: 1;
         transform: translateY(0);
+      }
+
+      /* Explicitly hide buttons when toggled off via long press */
+      .masonry-item.buttons-hidden .classic-blue-tick,
+      .masonry-item.buttons-hidden .action-btn {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(4px) !important;
       }
 
       .action-btn {
@@ -1112,6 +1120,29 @@
       button:active {
         outline: none;
       }
+
+      .status-toggle-btn {
+        background: var(--control-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
+      }
+      .status-toggle-btn:hover {
+        background: var(--control-hover);
+        transform: scale(1.08);
+      }
+      .status-toggle-btn.filtered {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.3);
+      }
     </style>
 </head>
 <body>
@@ -1119,9 +1150,12 @@
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
     <aside class="sidebar collapsed" id="sidebar">
-      <div class="app-brand">
-        <div class="app-brand-logo">✦</div>
-        <h1>Studio</h1>
+      <div class="app-brand" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="app-brand-logo">✦</div>
+          <h1>Studio</h1>
+        </div>
+        <button id="statusFilterBtn" class="status-toggle-btn" title="Cycle Status: All / Filtered / Unfiltered">❤️</button>
       </div>
       
       <div class="sidebar-group">
@@ -1299,12 +1333,14 @@
       <span id="notificationMessage" class="notification-text">Notification</span>
     </div>
 
+    <datalist id="allTagsDatalist"></datalist>
+
     <script>
       const PROJECT_ID = "monster-rk";
       const API_KEY = "AIzaSyDNXuf7O3nepPVyM43TgAXxnkGw5gpKd3s";
       const COLLECTION_NAME = "images";
       const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}`;
-      const FIRESTORE_QUERY = `${FIRESTORE_BASE}?pageSize=1000&key=${API_KEY}`;
+      const FIRESTORE_PAGE_SIZE = 300;
 
       const TRANSITION_DURATION_MS = 420;
 
@@ -1315,6 +1351,10 @@
       const clearSearchBtn = document.getElementById('clearSearchBtn');
       const sortSelect = document.getElementById('sortSelect');
       const favFilterBtn = document.getElementById('favFilterBtn');
+
+      const statusFilterBtn = document.getElementById('statusFilterBtn');
+      // Status mode cycles through: 'all' -> 'filtered' -> 'unfiltered'
+      let currentStatusFilter = 'all';
       
       const sidebar = document.getElementById('sidebar');
       const menuToggleBtn = document.getElementById('menuToggleBtn');
@@ -1372,7 +1412,7 @@
       const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
       const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
 
-      const DEFAULT_TAG = "Sexy"; 
+      const DEFAULT_TAG = null; // sexy, normal 
 
       let allImages = [];
       let selectedUrls = new Set();
@@ -1459,8 +1499,12 @@
       sidebarBackdrop.addEventListener('click', toggleSidebar);
 
       function updateHistoryButtons() {
-        undoBtn.disabled = currentHistoryIndex < 0;
-        redoBtn.disabled = currentHistoryIndex >= actionHistory.length - 1;
+        if (undoBtn) {
+          undoBtn.disabled = currentHistoryIndex < 0;
+        }
+        if (redoBtn) {
+          redoBtn.disabled = currentHistoryIndex >= actionHistory.length - 1;
+        }
       }
 
       function pushToHistory(action) {
@@ -1613,11 +1657,28 @@
         });
       }
 
+      function updateTagDatalist() {
+        const datalist = document.getElementById('allTagsDatalist');
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        Array.from(allTags).sort().forEach(tag => {
+          const opt = document.createElement('option');
+          opt.value = tag;
+          datalist.appendChild(opt);
+        });
+      }
+
       function getVisibleImages() {
         const query = searchInput.value.trim().toLowerCase();
 
         return allImages
           .filter(item => {
+            // Apply Status Filter (allows both when 'all' is active)
+            if (currentStatusFilter !== 'all') {
+              const itemStatus = (item.status || 'unfiltered').toLowerCase();
+              if (itemStatus !== currentStatusFilter) return false;
+            }
+
             if (showFavoritesOnly && !favorites.has(item.url)) return false;
             
             if (activeTagFilters.size > 0) {
@@ -1633,8 +1694,9 @@
             return matchName || matchUrl || matchTag;
           })
           .sort((a, b) => {
-            if (sortSelect.value === 'newest') return b.originalIndex - a.originalIndex;
-            return a.originalIndex - b.originalIndex;
+            const timeA = a.timestamp ?? a.originalIndex ?? 0;
+            const timeB = b.timestamp ?? b.originalIndex ?? 0;
+            return sortSelect.value === 'newest' ? timeB - timeA : timeA - timeB;
           });
       }
 
@@ -1676,7 +1738,17 @@
           removeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             currentOverlayItem.tags = currentOverlayItem.tags.filter(tag => tag !== t);
+
+            // Clean up tag from overall list if no longer used by any image
+            const stillInUse = allImages.some(img => (img.tags || []).includes(t));
+            if (!stillInUse) {
+              allTags.delete(t);
+              activeTagFilters.delete(t);
+              updateTagDatalist();
+            }
+
             renderOverlayContent();
+            renderSidebarTags();
             updateFirestoreTags(currentOverlayItem);
           });
 
@@ -1696,6 +1768,10 @@
         tagInputBox.style.width = '140px';
         tagInputBox.style.fontSize = '14px';
         tagInputBox.placeholder = 'Tag name...';
+        
+        // Link autocomplete datalist
+        tagInputBox.setAttribute('list', 'allTagsDatalist');
+        tagInputBox.setAttribute('autocomplete', 'off');
 
         addBtn.addEventListener('click', () => {
           addBtn.style.display = 'none';
@@ -1709,6 +1785,8 @@
             if (!currentOverlayItem.tags) currentOverlayItem.tags = [];
             currentOverlayItem.tags.push(newTag);
             allTags.add(newTag);
+
+            updateTagDatalist();
             renderOverlayContent();
             renderSidebarTags();
             updateFirestoreTags(currentOverlayItem);
@@ -1851,17 +1929,32 @@
           overlay.appendChild(topRow);
           overlay.appendChild(bottomRow);
 
-          /* Right click / Long press toggle buttons instead of URL copy */
+          /* Right click / Long press: hide buttons if visible, show them if hidden */
           const toggleCardButtonsVisibility = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            card.classList.toggle('buttons-pinned');
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+
+            const sampleBtn = card.querySelector('.action-btn');
+            const isVisible = sampleBtn && window.getComputedStyle(sampleBtn).opacity !== '0';
+
+            if (isVisible) {
+              // If buttons are currently visible (via hover, pinned, etc.), hide them
+              card.classList.remove('buttons-pinned');
+              card.classList.add('buttons-hidden');
+            } else {
+              // If buttons are hidden, display them
+              card.classList.remove('buttons-hidden');
+              card.classList.add('buttons-pinned');
+            }
           };
 
           card.addEventListener('contextmenu', toggleCardButtonsVisibility);
 
           let touchTimer = null;
           let isLongPress = false;
+
           card.addEventListener('touchstart', (e) => {
             isLongPress = false;
             touchTimer = setTimeout(() => {
@@ -1876,7 +1969,10 @@
               e.preventDefault();
             }
           });
-          card.addEventListener('touchmove', () => clearTimeout(touchTimer));
+
+          card.addEventListener('touchmove', () => {
+            clearTimeout(touchTimer);
+          });
 
           card.addEventListener('click', (e) => {
             if (isLongPress) return;
@@ -2012,6 +2108,26 @@
         renderGallery();
       });
 
+      statusFilterBtn.addEventListener('click', () => {
+        if (currentStatusFilter === 'all') {
+          // Switch to Filtered
+          currentStatusFilter = 'filtered';
+          statusFilterBtn.textContent = '👅';
+          statusFilterBtn.title = 'Showing Filtered Only (Click for Unfiltered)';
+        } else if (currentStatusFilter === 'filtered') {
+          // Switch to Unfiltered
+          currentStatusFilter = 'unfiltered';
+          statusFilterBtn.textContent = '💦';
+          statusFilterBtn.title = 'Showing Unfiltered Only (Click for All)';
+        } else {
+          // Switch back to All
+          currentStatusFilter = 'all';
+          statusFilterBtn.textContent = '❤️';
+          statusFilterBtn.title = 'Showing All Images (Click for Filtered)';
+        }
+        renderGallery();
+      });
+
       searchInput.addEventListener('input', () => {
         clearSearchBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
         renderGallery();
@@ -2031,7 +2147,9 @@
       exportJsonBtn.addEventListener('click', () => {
         const exportData = allImages.map(img => ({
           url: img.url,
-          favorite: favorites.has(img.url)
+          status: img.status || 'unfiltered',
+          favorite: favorites.has(img.url),
+          tags: img.tags || []
         }));
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         triggerSafeFileDownload(blob, `gallery_backup_${Date.now()}.json`);
@@ -2060,7 +2178,7 @@
                   str: { stringValue: url },
                   date: { timestampValue: new Date().toISOString() },
                   favorite: { booleanValue: isFav },
-                  tags: { arrayValue: { values: [{ stringValue: DEFAULT_TAG }] } }
+                  tags: { arrayValue: { values: DEFAULT_TAG ? [{ stringValue: DEFAULT_TAG }] : [] } }
                 }
               };
 
@@ -2081,107 +2199,115 @@
         e.target.value = '';
       });
 
-      undoBtn.addEventListener('click', async () => {
-        if (currentHistoryIndex < 0) return;
-        const action = actionHistory[currentHistoryIndex];
-        
-        if (action.type === 'delete') {
-          showNotification('Restoring images...');
-          currentHistoryIndex--;
-          updateHistoryButtons();
+      if (undoBtn) {
+        undoBtn.addEventListener('click', async () => {
+          if (currentHistoryIndex < 0) return;
+          const action = actionHistory[currentHistoryIndex];
+          
+          if (action.type === 'delete') {
+            showNotification('Restoring images...');
+            currentHistoryIndex--;
+            updateHistoryButtons();
 
-          const restoredItems = [];
-          for (const item of action.items) {
-            const isFav = favorites.has(item.url);
-            const firestorePayload = {
-              fields: {
-                str: { stringValue: item.url },
-                date: { timestampValue: new Date().toISOString() },
-                favorite: { booleanValue: isFav },
-                tags: { arrayValue: { values: (item.tags || [DEFAULT_TAG]).map(t => ({ stringValue: t })) } }
+            const restoredItems = [];
+            for (const item of action.items) {
+              const isFav = favorites.has(item.url);
+              const firestorePayload = {
+                fields: {
+                  str: { stringValue: item.url },
+                  date: { timestampValue: new Date().toISOString() },
+                  favorite: { booleanValue: isFav },
+                  tags: { arrayValue: { values: (item.tags || [DEFAULT_TAG]).filter(Boolean).map(t => ({ stringValue: t })) } }
+                }
+              };
+
+              try {
+                const res = await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(firestorePayload)
+                });
+                const data = await res.json();
+                
+                const restored = { 
+                  ...item, 
+                  id: data.name,
+                  timestamp: item.timestamp || Date.now()
+                };
+                restoredItems.push(restored);
+                allImages.push(restored);
+              } catch (e) {
+                restoredItems.push(item);
+                allImages.push(item);
               }
-            };
+            }
 
-            try {
-              const res = await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(firestorePayload)
-              });
-              const data = await res.json();
-              
-              const restored = { ...item, id: data.name };
-              restoredItems.push(restored);
-              allImages.push(restored);
-            } catch (e) {
-              restoredItems.push(item);
-              allImages.push(item);
+            action.items = restoredItems;
+            renderGallery();
+          } else if (action.type === 'favorite') {
+            if (action.previousState) {
+              favorites.add(action.url);
+            } else {
+              favorites.delete(action.url);
+            }
+            currentHistoryIndex--;
+            updateHistoryButtons();
+            renderGallery();
+
+            const currentDoc = allImages.find(img => img.url === action.url) || action.item;
+            if (currentDoc && currentDoc.id) {
+              try {
+                fetch(`https://firestore.googleapis.com/v1/${currentDoc.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fields: { favorite: { booleanValue: action.previousState } } })
+                });
+              } catch (e) {}
             }
           }
+        });
+      }
 
-          action.items = restoredItems;
-          renderGallery();
-        } else if (action.type === 'favorite') {
-          if (action.previousState) {
-            favorites.add(action.url);
-          } else {
-            favorites.delete(action.url);
-          }
-          currentHistoryIndex--;
-          updateHistoryButtons();
-          renderGallery();
+      if (redoBtn) {
+        redoBtn.addEventListener('click', async () => {
+          if (currentHistoryIndex >= actionHistory.length - 1) return;
+          currentHistoryIndex++;
+          const action = actionHistory[currentHistoryIndex];
 
-          const currentDoc = allImages.find(img => img.url === action.url) || action.item;
-          if (currentDoc && currentDoc.id) {
+          if (action.type === 'delete') {
+            showNotification('Redoing delete...');
+            const urlsToRemove = new Set(action.items.map(i => i.url));
+            
+            allImages = allImages.filter(img => !urlsToRemove.has(img.url));
+            urlsToRemove.forEach(url => favorites.delete(url));
+            selectedUrls.clear();
+            updateHistoryButtons();
+            renderGallery();
+
+            for (const item of action.items) {
+              if (item.id) {
+                fetch(`https://firestore.googleapis.com/v1/${item.id}?key=${API_KEY}`, { method: 'DELETE' });
+              }
+            }
+          } else if (action.type === 'favorite') {
+            if (action.newState) {
+              favorites.add(action.url);
+            } else {
+              favorites.delete(action.url);
+            }
+            updateHistoryButtons();
+            renderGallery();
+
             try {
-              fetch(`https://firestore.googleapis.com/v1/${currentDoc.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
+              fetch(`https://firestore.googleapis.com/v1/${action.item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fields: { favorite: { booleanValue: action.previousState } } })
+                body: JSON.stringify({ fields: { favorite: { booleanValue: action.newState } } })
               });
             } catch (e) {}
           }
-        }
-      });
-
-      redoBtn.addEventListener('click', async () => {
-        if (currentHistoryIndex >= actionHistory.length - 1) return;
-        currentHistoryIndex++;
-        const action = actionHistory[currentHistoryIndex];
-
-        if (action.type === 'delete') {
-          showNotification('Redoing delete...');
-          const urlsToRemove = new Set(action.items.map(i => i.url));
-          
-          allImages = allImages.filter(img => !urlsToRemove.has(img.url));
-          urlsToRemove.forEach(url => favorites.delete(url));
-          selectedUrls.clear();
-          updateHistoryButtons();
-          renderGallery();
-
-          for (const item of action.items) {
-            if (item.id) {
-               fetch(`https://firestore.googleapis.com/v1/${item.id}?key=${API_KEY}`, { method: 'DELETE' });
-            }
-          }
-        } else if (action.type === 'favorite') {
-          if (action.newState) {
-            favorites.add(action.url);
-          } else {
-            favorites.delete(action.url);
-          }
-          updateHistoryButtons();
-          renderGallery();
-
-          try {
-            fetch(`https://firestore.googleapis.com/v1/${action.item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fields: { favorite: { booleanValue: action.newState } } })
-            });
-          } catch (e) {}
-        }
-      });
+        });
+      }
 
       const MAX_SCALE = 6;
       let currentScale = 1;
@@ -2246,7 +2372,6 @@
         if (!imageModal.classList.contains('open')) {
           history.pushState({ modalOpen: true }, '');
         }
-        
         imageModal.classList.add('open');
       }
 
@@ -2598,11 +2723,11 @@
         e.stopPropagation();
         const visible = getVisibleImages();
         if (visible.length && currentModalIndex >= 0) {
-          stopSlideshow();
+          const targetUrl = visible[currentModalIndex].url;
+          closeModal(); // Cleans up slideshow, transitions, and pops the history state cleanly
           selectedUrls.clear();
-          selectedUrls.add(visible[currentModalIndex].url);
+          selectedUrls.add(targetUrl);
           updateSelectionState();
-          imageModal.classList.remove('open');
           
           confirmTitle.textContent = 'Delete Image?';
           confirmOverlay.classList.add('open');
@@ -2613,9 +2738,11 @@
         stopSlideshow();
         resetZoom(false);
         clearTransitionClasses();
+
+        const wasOpen = imageModal.classList.contains('open');
         imageModal.classList.remove('open');
 
-        if (!fromPopState && history.state && history.state.modalOpen) {
+        if (!fromPopState && wasOpen && history.state && history.state.modalOpen) {
           history.back();
         }
       }
@@ -2655,43 +2782,81 @@
         }
       });
 
-      fetch(FIRESTORE_QUERY, { cache: 'no-store' })
-        .then(res => res.json())
-        .then(data => {
-          loadingMessage.style.display = 'none';
-          const docs = data.documents || [];
+      async function fetchAllFirestoreDocuments() {
+        let docs = [];
+        let pageToken = '';
+        let hasMore = true;
 
+        loadingMessage.textContent = '✨ Loading your visual gallery...';
+
+        while (hasMore) {
+          let url = `${FIRESTORE_BASE}?pageSize=${FIRESTORE_PAGE_SIZE}&key=${API_KEY}`;
+          if (pageToken) {
+            url += `&pageToken=${encodeURIComponent(pageToken)}`;
+          }
+
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) {
+            throw new Error(`Firestore request failed: ${res.status}`);
+          }
+
+          const data = await res.json();
+          if (data.documents && data.documents.length > 0) {
+            docs.push(...data.documents);
+            loadingMessage.textContent = `✨ Loaded ${docs.length} images...`;
+          }
+
+          if (data.nextPageToken) {
+            pageToken = data.nextPageToken;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        return docs;
+      }
+
+      fetchAllFirestoreDocuments()
+        .then(docs => {
+          loadingMessage.style.display = 'none';
           if (docs.length === 0) {
             gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
             return;
           }
-          
+
           allImages = docs.map((doc, index) => {
             const fields = doc.fields || {};
             const url = fields.str ? fields.str.stringValue : '';
+            const status = fields.status ? fields.status.stringValue.toLowerCase() : 'unfiltered';
             const favorite = fields.favorite ? fields.favorite.booleanValue : false;
             let tags = fields.tags?.arrayValue?.values?.map(v => v.stringValue) || [];
 
-            if (!tags.includes(DEFAULT_TAG)) {
+            if (DEFAULT_TAG && !tags.includes(DEFAULT_TAG)) {
               tags.unshift(DEFAULT_TAG);
             }
 
             if (favorite) favorites.add(url);
             tags.forEach(t => allTags.add(t));
 
+            const rawDate = fields.date?.timestampValue || doc.createTime;
+            const timestamp = rawDate ? new Date(rawDate).getTime() : index;
+
             return {
               id: doc.name, 
               url: url,
+              status: status,
               name: sanitizeFilename(url), 
               originalIndex: index,
+              timestamp: isNaN(timestamp) ? index : timestamp,
               tags: tags
             };
           });
-
+          updateTagDatalist();
           renderSidebarTags();
           renderGallery();
         })
         .catch(err => {
+          console.error(err);
           loadingMessage.textContent = 'Could not fetch gallery items.';
         });
 
@@ -2707,15 +2872,15 @@
           });
         });
 
-        window.addEventListener('popstate', (e) => {
+        window.addEventListener('popstate', () => {
           if (infoOverlayModal.classList.contains('open')) {
             closeInfoOverlay();
           }
-          if (imageModal.classList.contains('open')) {
-            closeModal(true);
-          }
           if (confirmOverlay.classList.contains('open')) {
             confirmOverlay.classList.remove('open');
+          }
+          if (imageModal.classList.contains('open')) {
+            closeModal(true);
           }
         });
     </script>
