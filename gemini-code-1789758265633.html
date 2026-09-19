@@ -1308,20 +1308,29 @@
       async function triggerSafeFileDownload(blob, filename) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.style.display = 'none';
+        
+        // Position off-screen instead of display: none to bypass strict DOM visibility checks
+        link.style.visibility = 'hidden';
+        link.style.position = 'absolute';
+        link.style.left = '-9999px';
+        
         link.href = url;
         link.download = filename;
 
         document.body.appendChild(link);
-        link.click();
+        
+        // Dispatch a native MouseEvent which is more reliably recognized by Opera's engine
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true
+        });
+        link.dispatchEvent(clickEvent);
 
-        // It is safe to remove the anchor tag from the DOM immediately
         setTimeout(() => {
           document.body.removeChild(link);
         }, 100);
 
-        // Increase timeout to 60 seconds to account for native "Save As" dialogs
-        // in Safari, iOS, and Firefox.
         setTimeout(() => {
           URL.revokeObjectURL(url);
         }, 60000); 
