@@ -67,6 +67,8 @@
         display: flex;
         height: 100vh;
         overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
 
       .sidebar {
@@ -93,6 +95,7 @@
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.4);
+        -webkit-backdrop-filter: blur(4px);
         backdrop-filter: blur(4px);
         z-index: 1040;
       }
@@ -140,7 +143,9 @@
         letter-spacing: -0.5px;
         background: var(--accent-grad);
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
+        color: transparent;
       }
 
       .sidebar-group {
@@ -231,6 +236,7 @@
         top: 0;
         z-index: 100;
         background: var(--bg-color);
+        -webkit-backdrop-filter: blur(12px);
         backdrop-filter: blur(12px);
         padding: 24px 28px 16px 28px;
         margin-left: -28px;          
@@ -296,7 +302,9 @@
         letter-spacing: -0.5px;
         background: var(--accent-grad);
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
+        color: transparent;
       }
 
       .image-stats {
@@ -335,14 +343,30 @@
       }
 
       .input-control {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
         background: var(--control-bg);
         border: 1px solid var(--card-border);
         color: var(--text-color);
         padding: 10px 16px;
         border-radius: 12px;
         font-size: 14px;
+        font-family: inherit;
         outline: none;
         transition: all 0.25s ease;
+      }
+
+      select.input-control {
+        padding-right: 32px;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 14px;
+      }
+
+      [data-theme="dark"] select.input-control {
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
       }
 
       .input-control:focus {
@@ -351,12 +375,16 @@
       }
 
       .btn {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
         background: var(--control-bg);
         border: 1px solid var(--card-border);
         color: var(--text-color);
         padding: 10px 16px;
         border-radius: 12px;
         font-size: 14px;
+        font-family: inherit;
         font-weight: 600;
         cursor: pointer;
         display: inline-flex;
@@ -374,7 +402,7 @@
 
       .sidebar .btn {
         width: 100%;
-        justify-content: flex-start;
+        justify-content: center;
       }
 
       .btn:hover:not(:disabled) {
@@ -426,6 +454,7 @@
         border-radius: 50%;
         border: 2px solid var(--tick-border);
         background: var(--tick-bg);
+        -webkit-backdrop-filter: blur(4px);
         backdrop-filter: blur(4px);
         display: inline-flex;
         align-items: center;
@@ -462,7 +491,11 @@
 
       .masonry-item {
         position: relative;
+        display: inline-block;
+        width: 100%;
         break-inside: avoid;
+        -webkit-column-break-inside: avoid;
+        page-break-inside: avoid;
         margin-bottom: 20px;
         background: var(--card-bg);
         border-radius: 16px;
@@ -471,6 +504,7 @@
         box-shadow: var(--card-shadow);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
+        vertical-align: top;
       }
 
       .masonry-item:hover {
@@ -486,6 +520,8 @@
         width: 100%;
         height: auto;
         display: block;
+        min-height: 120px;
+        background: var(--control-bg);
       }
 
       .card-overlay {
@@ -528,6 +564,9 @@
       }
 
       .action-btn {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
         background: var(--action-btn-bg);
         border: 1px solid var(--card-border);
         color: var(--text-color);
@@ -539,6 +578,7 @@
         justify-content: center;
         cursor: pointer;
         font-size: 15px;
+        font-family: inherit;
         pointer-events: auto;
         transition: all 0.2s ease;
       }
@@ -594,6 +634,7 @@
         position: fixed;
         inset: 0;
         background-color: rgba(15, 23, 42, 0.92);
+        -webkit-backdrop-filter: blur(14px);
         backdrop-filter: blur(14px);
         z-index: 1100;
         justify-content: center;
@@ -617,6 +658,7 @@
         height: 46px;
         z-index: 1120;
         background: rgba(15, 23, 42, 0.65);
+        -webkit-backdrop-filter: blur(16px);
         backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.16);
         padding: 0 10px;
@@ -633,6 +675,9 @@
 
       /* Icon-Only Slideshow Control Button */
       .modal-control-btn-icon {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
         background: rgba(255, 255, 255, 0.12);
         border: 1px solid rgba(255, 255, 255, 0.2);
         color: #ffffff;
@@ -660,13 +705,21 @@
       }
 
       .modal-select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
         background: rgba(255, 255, 255, 0.12);
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 12px;
         border: 1px solid rgba(255, 255, 255, 0.2);
         color: #ffffff;
         height: 32px;
-        padding: 0 10px;
+        padding: 0 24px 0 10px;
         border-radius: 20px;
         font-size: 12px;
+        font-family: inherit;
         font-weight: 600;
         cursor: pointer;
         outline: none;
@@ -679,11 +732,14 @@
       }
 
       .modal-select:hover, .modal-select:focus {
-        background: rgba(255, 255, 255, 0.22);
+        background-color: rgba(255, 255, 255, 0.22);
       }
 
       /* Top Right Close Button aligned on top: 24px */
       .modal-close-btn {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
         position: absolute;
         top: 24px;
         right: 32px;
@@ -693,6 +749,7 @@
         align-items: center;
         justify-content: center;
         background: rgba(15, 23, 42, 0.65);
+        -webkit-backdrop-filter: blur(16px);
         backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 50%;
@@ -764,6 +821,9 @@
       }
 
       .modal-nav-btn {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
@@ -778,6 +838,7 @@
         justify-content: center;
         cursor: pointer;
         font-size: 24px;
+        -webkit-backdrop-filter: blur(6px);
         backdrop-filter: blur(6px);
         transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
         z-index: 1110;
@@ -859,12 +920,11 @@
         font-weight: 500;
       }
 
-      /* Disable the mobile tap highlight color across all interactive elements */
+      /* Touch & focus normalizations */
       * {
         -webkit-tap-highlight-color: transparent;
       }
 
-      /* Remove default focus/active blue outlines when buttons/links are tapped */
       button,
       a,
       input,
@@ -940,7 +1000,7 @@
         <header>
           <div style="display: flex; gap: 16px; align-items: center;">
             <button id="menuToggleBtn" class="btn btn-icon" title="Toggle Navigation">☰</button>
-            <h1 class="app-title">Gallery Collection</h1>
+            <h1 class="app-title" id="galleryTitleBtn" style="cursor: pointer; user-select: none;" title="Go to initial view">Gallery Collection</h1>
             <div style="display: flex; gap: 6px; margin-left: 8px;">
               <button id="undoBtn" class="btn btn-icon" disabled title="Undo Action">↶</button>
               <button id="redoBtn" class="btn btn-icon" disabled title="Redo Action">↷</button>
@@ -992,7 +1052,9 @@
       <!-- Top Left Docked Bar (Emoji Only Play/Pause Button) -->
       <div class="modal-slideshow-bar" id="modalSlideshowBar">
         <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Toggle Auto Slideshow">
-          <span id="slideshowIcon">▶</span>
+          <span id="slideshowIcon" style="display: flex; align-items: center; justify-content: center; fill: currentColor; width: 14px; height: 14px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          </span>
         </button>
 
         <select id="slideshowTimerSelect" class="modal-select" title="Set Slide Duration">
@@ -1004,10 +1066,10 @@
         </select>
 
         <select id="slideshowAnimSelect" class="modal-select" title="Set Transition Effect">
-          <option value="slide" selected>Slide</option>
+          <option value="slide">Slide</option>
           <option value="fade">Fade</option>
           <option value="zoom">Zoom</option>
-          <option value="none">None</option>
+          <option value="none" selected>None</option>
         </select>
       </div>
 
@@ -1632,33 +1694,41 @@
         
         if (action.type === 'delete') {
           showNotification('Restoring images...');
-          allImages.push(...action.items);
           currentHistoryIndex--;
           updateHistoryButtons();
-          renderGallery();
 
           const restoredItems = [];
           for (const item of action.items) {
-             const firestorePayload = {
-               fields: {
-                 str: { stringValue: item.url },
-                 date: { timestampValue: new Date().toISOString() },
-                 favorite: { booleanValue: favorites.has(item.url) }
-               }
-             };
-             try {
-                const res = await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(firestorePayload)
-                });
-                const data = await res.json();
-                restoredItems.push({ ...item, id: data.name });
-             } catch(e) { 
-                restoredItems.push(item);
-             }
+            const isFav = favorites.has(item.url);
+            const firestorePayload = {
+              fields: {
+                str: { stringValue: item.url },
+                date: { timestampValue: new Date().toISOString() },
+                favorite: { booleanValue: isFav }
+              }
+            };
+
+            try {
+              const res = await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(firestorePayload)
+              });
+              const data = await res.json();
+              
+              // Use the newly assigned Firestore document path/ID
+              const restored = { ...item, id: data.name };
+              restoredItems.push(restored);
+              allImages.push(restored);
+            } catch (e) {
+              restoredItems.push(item);
+              allImages.push(item);
+            }
           }
+
+          // Keep action history synced with the active Firestore IDs
           action.items = restoredItems;
+          renderGallery();
         } else if (action.type === 'favorite') {
           if (action.previousState) {
             favorites.add(action.url);
@@ -1669,13 +1739,17 @@
           updateHistoryButtons();
           renderGallery();
 
-          try {
-            fetch(`https://firestore.googleapis.com/v1/${action.item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fields: { favorite: { booleanValue: action.previousState } } })
-            });
-          } catch (e) {}
+          // Resolve the current ID in case it was regenerated during an earlier undo
+          const currentDoc = allImages.find(img => img.url === action.url) || action.item;
+          if (currentDoc && currentDoc.id) {
+            try {
+              fetch(`https://firestore.googleapis.com/v1/${currentDoc.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fields: { favorite: { booleanValue: action.previousState } } })
+              });
+            } catch (e) {}
+          }
         }
       });
 
@@ -1777,6 +1851,12 @@
         modalNextBtn.classList.remove('hidden');
         modalBottomActions.classList.remove('hidden');
         updateModalFavUI();
+        
+        // Push a state so the mobile back button triggers popstate instead of exiting the page
+        if (!imageModal.classList.contains('open')) {
+          history.pushState({ modalOpen: true }, '');
+        }
+        
         imageModal.classList.add('open');
       }
 
@@ -1855,7 +1935,8 @@
       function startSlideshow() {
         isSlideshowPlaying = true;
         slideshowToggleBtn.classList.add('active');
-        slideshowIcon.textContent = '⏸';
+        // Two white bars for Pause
+        slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
 
         clearInterval(slideshowTimer);
         const interval = Math.max(parseInt(slideshowTimerSelect.value, 10) || 3000, 1500);
@@ -1867,7 +1948,8 @@
       function stopSlideshow() {
         isSlideshowPlaying = false;
         slideshowToggleBtn.classList.remove('active');
-        slideshowIcon.textContent = '▶';
+        // Single white play triangle
+        slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
         clearInterval(slideshowTimer);
       }
 
@@ -2116,11 +2198,16 @@
         }
       });
 
-      function closeModal() {
+      function closeModal(fromPopState = false) {
         stopSlideshow();
         resetZoom(false);
         clearTransitionClasses();
         imageModal.classList.remove('open');
+
+        // If closed by tapping the screen (not the back button), revert the history entry
+        if (!fromPopState && history.state && history.state.modalOpen) {
+          history.back();
+        }
       }
 
       modalClose.addEventListener('click', closeModal);
@@ -2182,6 +2269,29 @@
         .catch(err => {
           loadingMessage.textContent = 'Could not fetch gallery items.';
         });
+
+        const galleryTitleBtn = document.getElementById('galleryTitleBtn');
+
+        galleryTitleBtn.addEventListener('click', () => {
+          // Ensure the sticky header is visible if hidden by scroll direction
+          staticTop.classList.remove('header-hidden', 'header-scrolled');
+          headerRevealBtn.classList.remove('visible');
+
+          // Jump immediately to the top of the container
+          mainContent.scrollTo({
+            top: 0,
+            behavior: 'auto' // Change to 'auto' for an instant jump
+          });
+        });
+
+        window.addEventListener('popstate', (e) => {
+        if (imageModal.classList.contains('open')) {
+          closeModal(true);
+        }
+        if (confirmOverlay.classList.contains('open')) {
+          confirmOverlay.classList.remove('open');
+        }
+      });
     </script>
 </body>
 </html>
