@@ -994,10 +994,10 @@
       <div class="sidebar-group">
         <span class="sidebar-group-title">Backup & Sync</span>
         <button id="exportJsonBtn" class="btn">
-          📥 Export JSON
+          🏹 Export JSON
         </button>
         <button id="importJsonBtn" class="btn">
-          📤 Import JSON
+          🗡️ Import JSON
         </button>
         <input type="file" id="importFileInput" accept=".json" style="display: none;" />
       </div>
@@ -1308,32 +1308,17 @@
       async function triggerSafeFileDownload(blob, filename) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        
-        // Position off-screen instead of display: none to bypass strict DOM visibility checks
-        link.style.visibility = 'hidden';
-        link.style.position = 'absolute';
-        link.style.left = '-9999px';
-        
+        link.style.display = 'none';
         link.href = url;
         link.download = filename;
 
         document.body.appendChild(link);
-        
-        // Dispatch a native MouseEvent which is more reliably recognized by Opera's engine
-        const clickEvent = new MouseEvent('click', {
-          view: window,
-          bubbles: true,
-          cancelable: true
-        });
-        link.dispatchEvent(clickEvent);
+        link.click();
 
         setTimeout(() => {
           document.body.removeChild(link);
-        }, 100);
-
-        setTimeout(() => {
           URL.revokeObjectURL(url);
-        }, 60000); 
+        }, 1500);
       }
 
       async function downloadSingleImage(url, name) {
