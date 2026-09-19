@@ -800,6 +800,16 @@
         cursor: grabbing;
       }
 
+      .anim-slide-up {
+        transform: translateY(-140px) scale(0.96) !important;
+        opacity: 0 !important;
+      }
+
+      .anim-slide-down {
+        transform: translateY(140px) scale(0.96) !important;
+        opacity: 0 !important;
+      }
+
       /* Pronounced Dynamic Transition Classes */
       .anim-slide-left {
         transform: translateX(-140px) scale(0.96) !important;
@@ -1296,23 +1306,11 @@
       }
 
       async function triggerSafeFileDownload(blob, filename) {
-        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        
-        if (isMobile && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: blob.type })] })) {
-          try {
-            const file = new File([blob], filename, { type: blob.type });
-            await navigator.share({ files: [file], title: filename });
-            return;
-          } catch (e) {
-            if (e.name === 'AbortError') return;
-          }
-        }
-
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.style.display = 'none';
         link.href = url;
-        link.setAttribute('download', filename);
+        link.download = filename;
 
         document.body.appendChild(link);
         link.click();
@@ -2048,9 +2046,12 @@
             panY = initialPanY + diffY;
             updateImageTransform(false);
           } else {
-            if (Math.abs(diffX) > Math.abs(diffY)) {
-              e.preventDefault();
+            e.preventDefault();
+            // Apply translation along the dominant axis during drag
+            if (Math.abs(diffX) >= Math.abs(diffY)) {
               modalImg.style.transform = `translateX(${diffX * 0.75}px)`;
+            } else {
+              modalImg.style.transform = `translateY(${diffY * 0.75}px)`;
             }
           }
         }
@@ -2065,11 +2066,18 @@
           }
 
           if (!isZoomed && dragDistanceMoved > 50) {
-            const finalX = (e.changedTouches[0] ? e.changedTouches[0].clientX : 0) - startTouchX;
-            if (finalX < 0) {
-              showNextImage();
+            const touchEnd = e.changedTouches[0];
+            const finalX = (touchEnd ? touchEnd.clientX : 0) - startTouchX;
+            const finalY = (touchEnd ? touchEnd.clientY : 0) - startTouchY;
+
+            if (Math.abs(finalX) >= Math.abs(finalY)) {
+              // Horizontal swipe
+              if (finalX < 0) showNextImage();
+              else showPrevImage();
             } else {
-              showPrevImage();
+              // Vertical swipe: swipe up = next, swipe down = prev
+              if (finalY < 0) showNextImage();
+              else showPrevImage();
             }
           }
         }
@@ -2099,7 +2107,11 @@
           panY = initialPanY + diffY;
           updateImageTransform(false);
         } else {
-          modalImg.style.transform = `translateX(${diffX * 0.6}px)`;
+          if (Math.abs(diffX) >= Math.abs(diffY)) {
+            modalImg.style.transform = `translateX(${diffX * 0.6}px)`;
+          } else {
+            modalImg.style.transform = `translateY(${diffY * 0.6}px)`;
+          }
         }
       });
 
@@ -2115,10 +2127,14 @@
         modalImg.style.transform = '';
         if (dragDistanceMoved > 60) {
           const diffX = e.clientX - startMouseX;
-          if (diffX < 0) {
-            showNextImage();
+          const diffY = e.clientY - startMouseY;
+
+          if (Math.abs(diffX) >= Math.abs(diffY)) {
+            if (diffX < 0) showNextImage();
+            else showPrevImage();
           } else {
-            showPrevImage();
+            if (diffY < 0) showNextImage();
+            else showPrevImage();
           }
         }
       });
