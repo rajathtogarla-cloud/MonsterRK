@@ -266,8 +266,8 @@
         left: 50%;
         transform: translateX(-50%) translateY(-80px) scale(0.8);
         z-index: 1060;
-        width: 35px; /* Wider to act as a tab */
-        height: 18px; /* Slimmer profile so it doesn't block content */
+        width: 50px; /* Wider to act as a tab */
+        height: 30px; /* Slimmer profile so it doesn't block content */
         border-radius: 0 0 16px 16px; /* Flat on top, rounded on the bottom */
         border: 1px solid var(--card-border);
         border-top: none; /* Seamless connection to the screen edge */
@@ -278,6 +278,7 @@
         align-items: center;
         justify-content: center;
         font-size: 20px;
+        color: var(--text-color);
         opacity: 0;
         pointer-events: none;
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
@@ -1551,19 +1552,32 @@
       }
 
       function sanitizeFilename(url, suggestedName) {
-        if (suggestedName && suggestedName.trim().length > 0) {
-          let name = suggestedName.trim().replace(/[/\\?%*:|"<>]/g, '-');
-          if (!/\.(jpg|jpeg|png|webp|gif|svg|bmp)$/i.test(name)) name += '.jpg';
-          return name;
-        }
         try {
-          const parsed = new URL(url);
-          let filename = parsed.pathname.substring(parsed.pathname.lastIndexOf('/') + 1);
-          if (filename && filename.includes('.')) {
-            return decodeURIComponent(filename.replace(/[/\\?%*:|"<>]/g, '-'));
+          // 1. Remove the http:// or https:// protocol
+          let cleanName = url.replace(/^https?:\/\//i, '');
+          
+          // 2. Replace slashes, queries, and illegal OS characters with hyphens
+          cleanName = cleanName.replace(/[\/\\?%*:|"<>]/g, '-');
+          
+          // 3. Remove consecutive duplicate hyphens to keep it readable
+          cleanName = cleanName.replace(/-+/g, '-');
+          
+          // 4. Truncate to prevent OS file length errors (keep the end where the extension is)
+          if (cleanName.length > 200) {
+            cleanName = cleanName.substring(cleanName.length - 200);
           }
-        } catch (e) {}
-        return `image_${Date.now()}.jpg`;
+
+          // 5. Ensure it has a valid image extension, otherwise append .jpg
+          if (!/\.(jpg|jpeg|png|webp|gif|svg|bmp)$/i.test(cleanName)) {
+            // Clean up any trailing hyphens before appending
+            cleanName = cleanName.replace(/-$/, '') + '.jpg';
+          }
+
+          return cleanName;
+        } catch (e) {
+          // Fallback if the URL fails to parse entirely
+          return `image_${Date.now()}.jpg`;
+        }
       }
 
       async function triggerSafeFileDownload(blob, filename) {
@@ -1582,27 +1596,44 @@
         }, 1500);
       }
 
+      // 1. Add this new helper function above downloadSingleImage
+      async function fetchImageBlob(url) {
+        try {
+          // Attempt 1: Direct fetch
+          const response = await fetch(url, { referrerPolicy: 'no-referrer', mode: 'cors' });
+          if (!response.ok) throw new Error('Direct fetch failed');
+          return await response.blob();
+        } catch (error) {
+          // Attempt 2: Proxy fallback to bypass CORS (Fixes Pinterest, etc.)
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+          const response = await fetch(proxyUrl, { referrerPolicy: 'no-referrer', mode: 'cors' });
+          if (!response.ok) throw new Error('Proxy fetch failed');
+          return await response.blob();
+        }
+      }
+
+      // 2. Replace your existing downloadSingleImage function
       async function downloadSingleImage(url, name) {
         showNotification('Downloading image...');
         const filename = sanitizeFilename(url, name);
         try {
-          const response = await fetch(url, { referrerPolicy: 'no-referrer', mode: 'cors' });
-          if (!response.ok) throw new Error('CORS or Network error');
-          const blob = await response.blob();
+          const blob = await fetchImageBlob(url);
           await triggerSafeFileDownload(blob, filename);
           showNotification('Download finished!');
         } catch (err) {
           const link = document.createElement('a');
           link.href = url;
+          link.download = filename;
           link.target = '_blank';
           link.rel = 'noopener noreferrer';
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          showNotification('Opening image in a new tab.');
+          showNotification('Opened image in a new tab (Download restricted by site).');
         }
       }
 
+      // 3. Replace your existing downloadZipArchive function
       async function downloadZipArchive(itemsToDownload, zipFilename = 'gallery-collection.zip') {
         if (!itemsToDownload || itemsToDownload.length === 0) return;
         if (itemsToDownload.length === 1) {
@@ -1617,18 +1648,18 @@
         const downloadPromises = itemsToDownload.map(async (item, i) => {
           const filename = sanitizeFilename(item.url, item.name || `image_${i + 1}`);
           try {
-            const resp = await fetch(item.url, { referrerPolicy: 'no-referrer' });
-            if (!resp.ok) throw new Error('Fetch error');
-            const blob = await resp.blob();
+            const blob = await fetchImageBlob(item.url);
             zip.file(filename, blob);
             successCount++;
-          } catch (error) { }
+          } catch (error) { 
+            console.warn('Failed to archive image:', item.url);
+          }
         });
 
         await Promise.allSettled(downloadPromises);
 
         if (successCount === 0) {
-          showNotification('Network limitations prevented download.');
+          showNotification('Network restrictions prevented downloading these images.');
           return;
         }
 
