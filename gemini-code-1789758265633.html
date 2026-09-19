@@ -1308,70 +1308,43 @@
       async function triggerSafeFileDownload(blob, filename) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-
         link.style.display = 'none';
         link.href = url;
-        link.setAttribute('download', filename);
-        link.setAttribute('target', '_blank'); // Ensures WebKit/Safari handles the stream cleanly
-        link.rel = 'noopener noreferrer';
+        link.download = filename;
 
         document.body.appendChild(link);
+        link.click();
 
-        // Use MouseEvent dispatch for broader compatibility across older Safari/Firefox versions
-        if (typeof link.click === 'function') {
-          link.click();
-        } else {
-          const evt = new MouseEvent('click', {
-            view: window,
-            bubbles: true,
-            cancelable: true
-          });
-          link.dispatchEvent(evt);
-        }
-
-        // Allow ample time for Safari/Firefox to start reading the blob stream before revocation
+        // It is safe to remove the anchor tag from the DOM immediately
         setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link);
-          }
+          document.body.removeChild(link);
+        }, 100);
+
+        // Increase timeout to 60 seconds to account for native "Save As" dialogs
+        // in Safari, iOS, and Firefox.
+        setTimeout(() => {
           URL.revokeObjectURL(url);
-        }, 30000); // 30 seconds
+        }, 60000); 
       }
 
       async function downloadSingleImage(url, name) {
         showNotification('Downloading image...');
         const filename = sanitizeFilename(url, name);
-
         try {
-          // Attempt standard CORS fetch
-          const response = await fetch(url, {
-            referrerPolicy: 'no-referrer',
-            mode: 'cors'
-          });
-
+          const response = await fetch(url, { referrerPolicy: 'no-referrer', mode: 'cors' });
           if (!response.ok) throw new Error('CORS or Network error');
-
           const blob = await response.blob();
           await triggerSafeFileDownload(blob, filename);
           showNotification('Download finished!');
         } catch (err) {
-          // Cross-origin fallback for Safari, Firefox, and mobile WebViews:
-          // If CORS prevents blob fetching, browsers refuse cross-origin <a> download attributes.
-          // Open image directly so the user can save via long-press or right-click.
-          const fallbackLink = document.createElement('a');
-          fallbackLink.href = url;
-          fallbackLink.target = '_blank';
-          fallbackLink.rel = 'noopener noreferrer';
-          document.body.appendChild(fallbackLink);
-          fallbackLink.click();
-          
-          setTimeout(() => {
-            if (document.body.contains(fallbackLink)) {
-              document.body.removeChild(fallbackLink);
-            }
-          }, 1000);
-
-          showNotification('Browser blocked direct download. Opened in new tab—save manually.');
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showNotification('Opening image in a new tab.');
         }
       }
 
