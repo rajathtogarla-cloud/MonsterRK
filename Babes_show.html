@@ -232,8 +232,8 @@
       }
 
       .static-top {
-        position: sticky;
-        top: 0;
+        position: relative; /* Changed from sticky */
+        /* top: 0; (Remove this line) */
         z-index: 100;
         background: var(--bg-color);
         -webkit-backdrop-filter: blur(12px);
@@ -246,7 +246,13 @@
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
       }
 
-      .static-top.header-hidden {
+      /* Add this new class right below */
+      .static-top.is-sticky {
+        position: sticky;
+        top: 0;
+      }
+
+      .static-top.is-sticky.header-hidden {
         transform: translateY(-100%);
       }
 
@@ -256,21 +262,22 @@
 
       .header-reveal-btn {
         position: fixed;
-        top: 16px;
+        top: 0; /* Anchored to the exact top edge */
         left: 50%;
         transform: translateX(-50%) translateY(-80px) scale(0.8);
         z-index: 1060;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
+        width: 35px; /* Wider to act as a tab */
+        height: 18px; /* Slimmer profile so it doesn't block content */
+        border-radius: 0 0 16px 16px; /* Flat on top, rounded on the bottom */
         border: 1px solid var(--card-border);
+        border-top: none; /* Seamless connection to the screen edge */
         background: var(--sidebar-bg);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
+        font-size: 20px;
         opacity: 0;
         pointer-events: none;
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
@@ -279,7 +286,7 @@
 
       .header-reveal-btn.visible {
         transform: translateX(-50%) translateY(0) scale(1);
-        opacity: 1;
+        opacity: 0.6;
         pointer-events: auto;
       }
 
@@ -1205,7 +1212,7 @@
       </div>
     </aside>
 
-    <button id="headerRevealBtn" class="header-reveal-btn" title="Show Header Controls">✨</button>
+    <button id="headerRevealBtn" class="header-reveal-btn" title="Show Header Controls">ᯤ</button>
 
     <main class="main-content" id="mainContent">
       <div class="static-top" id="staticTop">
@@ -1460,6 +1467,9 @@
 
         const currentY = mainContent.scrollTop;
         const delta = currentY - lastScrollY;
+        
+        // Calculate the exact height of the header dynamically
+        const headerHeight = staticTop.offsetHeight;
 
         if (currentY > 15) {
           staticTop.classList.add('header-scrolled');
@@ -1468,22 +1478,33 @@
         }
 
         if (Math.abs(delta) > 8) {
-          if (delta > 0 && currentY > 100) {
+          // Use headerHeight instead of the hardcoded 100
+          if (delta > 0 && currentY > headerHeight) {
             staticTop.classList.add('header-hidden');
             headerRevealBtn.classList.remove('visible');
-          } else if (delta < 0 && currentY > 100) {
+          } else if (delta < 0 && currentY > headerHeight) {
             if (staticTop.classList.contains('header-hidden')) {
               headerRevealBtn.classList.add('visible');
             }
-          } else if (currentY <= 100) {
+          } else if (currentY <= headerHeight) {
             staticTop.classList.remove('header-hidden');
             headerRevealBtn.classList.remove('visible');
           }
           lastScrollY = currentY;
         }
+
+        // Fully release the sticky state when hitting the absolute top for a seamless 1:1 reset
+        if (currentY <= 0) {
+          staticTop.classList.remove('is-sticky');
+        }
       }, { passive: true });
 
       headerRevealBtn.addEventListener('click', () => {
+        staticTop.classList.add('is-sticky');
+        
+        // Force the browser to apply the hidden state before transitioning
+        void staticTop.offsetWidth; 
+        
         staticTop.classList.remove('header-hidden');
         headerRevealBtn.classList.remove('visible');
       });
@@ -2863,7 +2884,7 @@
         const galleryTitleBtn = document.getElementById('galleryTitleBtn');
 
         galleryTitleBtn.addEventListener('click', () => {
-          staticTop.classList.remove('header-hidden', 'header-scrolled');
+          staticTop.classList.remove('header-hidden', 'header-scrolled', 'is-sticky'); // Added 'is-sticky'
           headerRevealBtn.classList.remove('visible');
 
           mainContent.scrollTo({
