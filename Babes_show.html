@@ -30,6 +30,8 @@
         --accent-glow: rgba(99, 102, 241, 0.25);
         --pink-fav: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
         --danger-grad: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        --attach-grad: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --attach-glow: rgba(16, 185, 129, 0.3);
         
         --card-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.1);
 
@@ -71,7 +73,7 @@
         -moz-osx-font-smoothing: grayscale;
       }
 
-      /* Authentication UI[cite: 1, 2] */
+      /* Authentication UI */
       #auth-wrapper {
         display: flex; 
         align-items: center; 
@@ -157,13 +159,13 @@
       .hidden { display: none !important; }
 
       .sidebar {
-        width: 280px;
+        width: 290px;
         background: var(--sidebar-bg);
         border-right: 1px solid var(--card-border);
-        padding: 28px 20px;
+        padding: 24px 18px;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 20px;
         flex-shrink: 0;
         transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1050;
@@ -172,7 +174,7 @@
 
       .sidebar.collapsed {
         transform: translateX(-100%);
-        margin-right: -280px;
+        margin-right: -290px;
       }
 
       .sidebar-backdrop {
@@ -199,6 +201,13 @@
         }
         .sidebar-backdrop.active {
           display: block;
+        }
+
+        /* Prevent Attach Mode UI on mobile */
+        #modeToggleBtn,
+        #tagAddRow,
+        #attachBanner {
+          display: none !important;
         }
       }
 
@@ -239,12 +248,61 @@
         gap: 12px;
       }
       
+      .sidebar-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
       .sidebar-group-title {
         font-size: 11px;
         text-transform: uppercase;
         color: var(--text-muted);
         font-weight: 700;
         letter-spacing: 1px;
+      }
+
+      .btn-mode-toggle {
+        border: 1px solid var(--card-border);
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.25s ease;
+        background: var(--control-bg);
+        color: var(--text-color);
+        font-family: inherit;
+      }
+
+      .btn-mode-toggle.attach-active {
+        background: var(--attach-grad);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 0 12px var(--attach-glow);
+      }
+
+      .tag-add-container {
+        display: none;
+        gap: 8px;
+      }
+
+      .sidebar.attach-mode .tag-add-container {
+        display: flex;
+      }
+
+      .btn-small {
+        background: var(--attach-grad);
+        color: white;
+        border: none;
+        padding: 0 14px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 12px;
+        cursor: pointer;
       }
 
       .search-wrapper {
@@ -433,6 +491,54 @@
         flex-wrap: wrap;
       }
 
+      /* Attach Mode Banner */
+      .mode-banner {
+        display: none;
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 12px 18px;
+        border-radius: 14px;
+        font-size: 13px;
+        color: #10b981;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 6px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      [data-theme="dark"] .mode-banner {
+        color: #34d399;
+      }
+
+      .mode-banner.visible {
+        display: flex;
+      }
+
+      .btn-apply-attach {
+        background: var(--attach-grad);
+        color: white;
+        border: none;
+        padding: 8px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 14px var(--attach-glow);
+        font-family: inherit;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+      }
+
+      .btn-apply-attach:hover:not(:disabled) {
+        transform: translateY(-2px);
+      }
+
+      .btn-apply-attach:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
       .input-control {
         -webkit-appearance: none;
         -moz-appearance: none;
@@ -613,6 +719,36 @@
         display: block;
         min-height: 120px;
         background: var(--control-bg);
+      }
+
+      /* Attach Mode Specific Card Styles */
+      body.attach-mode .masonry-item.eligible {
+        cursor: pointer;
+      }
+
+      body.attach-mode .masonry-item.eligible:hover {
+        outline: 2px solid #10b981;
+      }
+
+      body.attach-mode .masonry-item.eligible.selected-for-attach {
+        outline: 3px solid #10b981;
+      }
+
+      body.attach-mode .masonry-item.eligible .attach-tick-indicator {
+        opacity: 0.8 !important;
+      }
+
+      body.attach-mode .masonry-item.eligible.selected-for-attach .attach-tick-indicator {
+        opacity: 1 !important;
+        background: #10b981 !important;
+        border-color: #10b981 !important;
+        color: white !important;
+      }
+
+      body.attach-mode .masonry-item.already-tagged {
+        opacity: 0.35;
+        filter: grayscale(0.6);
+        cursor: not-allowed;
       }
 
       .card-overlay {
@@ -836,7 +972,7 @@
       }
 
       #sidebarTags {
-        max-height: 200px;
+        max-height: 220px;
         overflow-y: auto;
       }
 
@@ -844,15 +980,26 @@
         background: var(--control-bg);
         border: 1px solid var(--card-border);
         color: var(--text-color);
-        padding: 6px 10px;
+        padding: 6px 12px;
         border-radius: 12px;
-        font-size: 14px;
+        font-size: 13px;
         cursor: pointer;
         user-select: none;
+        transition: all 0.2s;
       }
+
       .sidebar-tag.active {
         background: var(--pink-fav);
+        border-color: transparent;
         color: #fff;
+      }
+
+      .sidebar-tag.attach-selected {
+        background: var(--attach-grad);
+        border-color: transparent;
+        color: white;
+        font-weight: 700;
+        box-shadow: 0 2px 8px var(--attach-glow);
       }
 
       .notification {
@@ -1266,7 +1413,7 @@
             type="text" 
             id="searchInput" 
             class="input-control" 
-            placeholder="Filter by title, tag or URL..."
+            placeholder="Filter by title, Doc ID, tag or URL..."
           />
           <button id="clearSearchBtn" class="search-clear-btn" title="Clear Search">✕</button>
         </div>
@@ -1289,8 +1436,21 @@
         <span id="statsLabel" class="image-stats">0 Images Loaded</span>
       </div>
 
+      <!-- Tag Filtering & Tag Attachment Section -->
       <div class="sidebar-group">
-        <span class="sidebar-group-title">Tags Filter</span>
+        <div class="sidebar-header-row">
+          <span class="sidebar-group-title" id="sectionTitle">Tags Filter</span>
+          <button id="modeToggleBtn" class="btn-mode-toggle" title="Switch between Filtering and Attaching tags">
+            <span>Mode: Filter</span> ⚡
+          </button>
+        </div>
+
+        <!-- Inline Tag Adder (Active in Attach Mode) -->
+        <div class="tag-add-container" id="tagAddRow">
+          <input type="text" id="newTagInput" class="input-control" placeholder="New tag name..." autocomplete="off" style="padding: 8px 12px; font-size: 13px;" />
+          <button id="addNewTagBtn" class="btn-small">+ Add</button>
+        </div>
+
         <div id="sidebarTags" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
       </div>
 
@@ -1317,14 +1477,13 @@
             <div style="display: flex; gap: 6px; margin-left: 8px;">
               <button id="undoBtn" class="btn btn-icon" disabled title="Undo Action">↶</button>
               <button id="redoBtn" class="btn btn-icon" disabled title="Redo Action">↷</button>
-              <!-- Logout Button -->
               <button id="logoutBtn" class="btn btn-icon" title="Logout" style="color: #ef4444;">💔</button>
             </div>
           </div>
         </header>
 
         <section class="toolbar">
-          <div class="toolbar-row">
+          <div class="toolbar-row" id="standardToolbarRow">
             <div class="toolbar-group">
               <button id="favFilterBtn" class="btn btn-toggle" title="Show saved favorites">
                 ♥ Favorites Only
@@ -1333,11 +1492,12 @@
               <select id="sortSelect" class="input-control" title="Sort by order">
                 <option value="newest">🕒 Newest Added</option>
                 <option value="oldest">🕰️ Oldest Added</option>
+                <option value="random">🎲 Random</option>
               </select>
             </div>
           </div>
 
-          <div class="toolbar-row">
+          <div class="toolbar-row" id="selectionToolbarRow">
             <div class="toolbar-group">
               <label style="display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; user-select: none;">
                 <span id="selectAllTick" class="classic-blue-tick" title="Select / Deselect all">✓</span>
@@ -1355,6 +1515,19 @@
               </button>
             </div>
           </div>
+
+          <!-- Attach Mode Notification Bar -->
+          <div class="mode-banner" id="attachBanner">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <span id="bannerInstruction" style="font-weight: 600;">1. Click tag(s) in sidebar, then pick unattached images below.</span>
+              <button id="selectAllEligibleBtn" class="btn-mode-toggle" style="background: var(--control-bg); display: none;">
+                Select All Eligible
+              </button>
+            </div>
+            <button id="applyAttachBtn" class="btn-apply-attach" disabled>
+              Attach Tags to 0 Images
+            </button>
+          </div>
         </section>
       </div>
 
@@ -1369,10 +1542,29 @@
           <h3 class="overlay-title">Details & Tags</h3>
           <button class="overlay-close-btn" id="closeInfoOverlayBtn">&times;</button>
         </div>
-        <div class="overlay-copy-row">
-          <input type="text" id="infoOverlayUrl" class="input-control" readonly />
-          <button class="btn btn-accent" id="infoOverlayCopyBtn">Copy</button>
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <span class="tags-section-title" style="margin: 0; min-width: 65px;">Doc ID</span>
+          <div class="overlay-copy-row" style="flex: 1;">
+            <input type="text" id="infoOverlayDocId" class="input-control" readonly placeholder="Document ID" />
+            <button class="btn btn-accent" id="infoOverlayDocCopyBtn">Copy</button>
+          </div>
         </div>
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <span class="tags-section-title" style="margin: 0; min-width: 65px;">URL</span>
+          <div class="overlay-copy-row" style="flex: 1;">
+            <input type="text" id="infoOverlayUrl" class="input-control" readonly placeholder="Image URL" />
+            <button class="btn btn-accent" id="infoOverlayCopyBtn">Copy</button>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <span class="tags-section-title" style="margin: 0; min-width: 65px;">Status</span>
+          <button type="button" class="btn btn-accent" id="infoOverlayStatusBtn" style="padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer;">
+          </button>
+        </div>
+
         <div>
           <div class="tags-section-title" style="margin-bottom: 12px;">Tags</div>
           <div class="tags-container" id="infoOverlayTagsContainer"></div>
@@ -1450,7 +1642,6 @@
 
       const TRANSITION_DURATION_MS = 420;
 
-      // Initialize Firebase for Authentication
       const firebaseConfig = {
         apiKey: API_KEY,
         authDomain: `${PROJECT_ID}.firebaseapp.com`,
@@ -1460,7 +1651,7 @@
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
 
-      // Authentication Logic Nodes
+      // Authentication Elements
       const authWrapper = document.getElementById("auth-wrapper");
       const emailInput = document.getElementById("email");
       const passwordInput = document.getElementById("password");
@@ -1468,19 +1659,16 @@
       const errorMessage = document.getElementById("error-message");
       const logoutBtn = document.getElementById("logoutBtn");
 
-      // Core layout elements to hide/show
       const layoutElements = [
           document.getElementById("sidebar"),
           document.getElementById("mainContent"),
           document.getElementById("headerRevealBtn")
       ];
 
-      // Firebase Authentication State Listener
       onAuthStateChanged(auth, async (user) => {
         if (user) {
             authWrapper.classList.add("hidden");
             layoutElements.forEach(el => el && el.classList.remove("hidden"));
-            // Trigger gallery data fetch only after successful authentication
             initializeGalleryData();
         } else {
             authWrapper.classList.remove("hidden");
@@ -1520,10 +1708,7 @@
       const clearSearchBtn = document.getElementById('clearSearchBtn');
       const sortSelect = document.getElementById('sortSelect');
       const favFilterBtn = document.getElementById('favFilterBtn');
-
       const statusFilterBtn = document.getElementById('statusFilterBtn');
-      // Status mode cycles through: 'all' -> 'filtered' -> 'unfiltered'
-      let currentStatusFilter = 'all';
       
       const sidebar = document.getElementById('sidebar');
       const menuToggleBtn = document.getElementById('menuToggleBtn');
@@ -1550,7 +1735,22 @@
       const mainContent = document.getElementById('mainContent');
       const staticTop = document.getElementById('staticTop');
       const headerRevealBtn = document.getElementById('headerRevealBtn');
+      const galleryTitleBtn = document.getElementById('galleryTitleBtn');
 
+      // Tag Attach Elements
+      const sectionTitle = document.getElementById('sectionTitle');
+      const modeToggleBtn = document.getElementById('modeToggleBtn');
+      const tagAddRow = document.getElementById('tagAddRow');
+      const newTagInput = document.getElementById('newTagInput');
+      const addNewTagBtn = document.getElementById('addNewTagBtn');
+      const attachBanner = document.getElementById('attachBanner');
+      const bannerInstruction = document.getElementById('bannerInstruction');
+      const selectAllEligibleBtn = document.getElementById('selectAllEligibleBtn');
+      const applyAttachBtn = document.getElementById('applyAttachBtn');
+      const standardToolbarRow = document.getElementById('standardToolbarRow');
+      const selectionToolbarRow = document.getElementById('selectionToolbarRow');
+
+      // Lightbox Elements
       const imageModal = document.getElementById('imageModal');
       const modalViewer = document.getElementById('modalViewer');
       const modalImg = document.getElementById('modalImg');
@@ -1565,11 +1765,15 @@
       const modalDownloadBtn = document.getElementById('modalDownloadBtn');
       const modalDeleteBtn = document.getElementById('modalDeleteBtn');
 
+      // Detail Modal Elements
       const infoOverlayModal = document.getElementById('infoOverlayModal');
       const closeInfoOverlayBtn = document.getElementById('closeInfoOverlayBtn');
       const infoOverlayUrl = document.getElementById('infoOverlayUrl');
       const infoOverlayCopyBtn = document.getElementById('infoOverlayCopyBtn');
       const infoOverlayTagsContainer = document.getElementById('infoOverlayTagsContainer');
+      const infoOverlayStatusBtn = document.getElementById('infoOverlayStatusBtn');
+      const infoOverlayDocId = document.getElementById('infoOverlayDocId');
+      const infoOverlayDocCopyBtn = document.getElementById('infoOverlayDocCopyBtn');
 
       const slideshowToggleBtn = document.getElementById('slideshowToggleBtn');
       const slideshowIcon = document.getElementById('slideshowIcon');
@@ -1583,16 +1787,24 @@
 
       const DEFAULT_TAG = null;
 
+      // App State
       let allImages = [];
       let selectedUrls = new Set();
       let favorites = new Set();
       let showFavoritesOnly = false;
       let allSelectedState = false;
       let ignoreScrollEvents = false;
+      let randomOrderMap = new Map();
+      let currentStatusFilter = 'all'; // 'all' | 'filtered' | 'unfiltered'
       
       let allTags = new Set();
       let activeTagFilters = new Set();
       const sidebarTagsContainer = document.getElementById('sidebarTags');
+
+      // Attach Mode State
+      let currentMode = 'filter'; // 'filter' or 'attach'
+      let selectedAttachTags = new Set();
+      let selectedAttachUrls = new Set();
 
       let actionHistory = [];
       let currentHistoryIndex = -1;
@@ -1629,7 +1841,6 @@
 
         const currentY = mainContent.scrollTop;
         const delta = currentY - lastScrollY;
-        
         const headerHeight = staticTop.offsetHeight;
 
         if (currentY > 15) {
@@ -1676,12 +1887,8 @@
       sidebarBackdrop.addEventListener('click', toggleSidebar);
 
       function updateHistoryButtons() {
-        if (undoBtn) {
-          undoBtn.disabled = currentHistoryIndex < 0;
-        }
-        if (redoBtn) {
-          redoBtn.disabled = currentHistoryIndex >= actionHistory.length - 1;
-        }
+        if (undoBtn) undoBtn.disabled = currentHistoryIndex < 0;
+        if (redoBtn) redoBtn.disabled = currentHistoryIndex >= actionHistory.length - 1;
       }
 
       function pushToHistory(action) {
@@ -1833,17 +2040,81 @@
         }
       }
 
+      // Mode Switch: Filter vs Attach
+      modeToggleBtn.addEventListener('click', () => {
+        // Disallow entering attach mode on mobile screens
+        if (currentMode === 'filter' && window.innerWidth <= 768) {
+          showNotification('Tag Attach mode is only available on desktop screens.');
+          return;
+        }
+
+        if (currentMode === 'filter') {
+          currentMode = 'attach';
+          document.body.classList.add('attach-mode');
+          sidebar.classList.add('attach-mode');
+          modeToggleBtn.classList.add('attach-active');
+          modeToggleBtn.innerHTML = '<span>Mode: Attach</span>🏷️';
+          sectionTitle.textContent = 'Tags Attach';
+          attachBanner.classList.add('visible');
+          
+          selectedAttachTags = new Set(activeTagFilters);
+          selectedAttachUrls.clear();
+        } else {
+          currentMode = 'filter';
+          document.body.classList.remove('attach-mode');
+          sidebar.classList.remove('attach-mode');
+          modeToggleBtn.classList.remove('attach-active');
+          modeToggleBtn.innerHTML = '<span>Mode: Filter</span> ⚡';
+          sectionTitle.textContent = 'Tags Filter';
+          attachBanner.classList.remove('visible');
+
+          selectedAttachTags.clear();
+          selectedAttachUrls.clear();
+        }
+        render();
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth <= 768 && currentMode === 'attach') {
+          currentMode = 'filter';
+          document.body.classList.remove('attach-mode');
+          sidebar.classList.remove('attach-mode');
+          modeToggleBtn.classList.remove('attach-active');
+          modeToggleBtn.innerHTML = '<span>Mode: Filter</span> ⚡';
+          sectionTitle.textContent = 'Tags Filter';
+          attachBanner.classList.remove('visible');
+
+          selectedAttachTags.clear();
+          selectedAttachUrls.clear();
+          render();
+        }
+      });
+
+      // Quick Tag Addition
+      function addNewTagInline() {
+        const tag = newTagInput.value.trim();
+        if (!tag) return;
+        allTags.add(tag);
+        selectedAttachTags.add(tag);
+        newTagInput.value = '';
+        updateTagDatalist();
+        render();
+        showNotification(`Tag "${tag}" created and selected.`);
+      }
+
+      addNewTagBtn.addEventListener('click', addNewTagInline);
+      newTagInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addNewTagInline();
+      });
+
       function renderSidebarTags() {
         sidebarTagsContainer.innerHTML = '';
         const query = searchInput.value.trim().toLowerCase();
 
-        const visibleItems = getVisibleImages();
-        const visibleTags = new Set();
-        visibleItems.forEach(item => {
-          (item.tags || []).forEach(t => visibleTags.add(t));
-        });
-
+        const visibleTags = new Set(allTags);
+        allImages.forEach(item => (item.tags || []).forEach(t => visibleTags.add(t)));
         activeTagFilters.forEach(t => visibleTags.add(t));
+        selectedAttachTags.forEach(t => visibleTags.add(t));
 
         const sortedTags = Array.from(visibleTags)
           .filter(tag => !query || tag.toLowerCase().includes(query))
@@ -1856,17 +2127,34 @@
         
         sortedTags.forEach(tag => {
           const tagEl = document.createElement('div');
-          tagEl.className = `sidebar-tag ${activeTagFilters.has(tag) ? 'active' : ''}`;
+          tagEl.className = 'sidebar-tag';
           tagEl.textContent = tag;
-          tagEl.addEventListener('click', () => {
-            if (activeTagFilters.has(tag)) {
-              activeTagFilters.delete(tag);
-            } else {
-              activeTagFilters.add(tag);
-            }
-            renderGallery();
-            renderSidebarTags();
-          });
+
+          if (currentMode === 'filter') {
+            if (activeTagFilters.has(tag)) tagEl.classList.add('active');
+            tagEl.addEventListener('click', () => {
+              if (activeTagFilters.has(tag)) {
+                activeTagFilters.delete(tag);
+              } else {
+                activeTagFilters.add(tag);
+              }
+              renderGallery();
+              renderSidebarTags();
+            });
+          } else {
+            // Attach Mode Tag Selection
+            if (selectedAttachTags.has(tag)) tagEl.classList.add('attach-selected');
+            tagEl.addEventListener('click', () => {
+              if (selectedAttachTags.has(tag)) {
+                selectedAttachTags.delete(tag);
+              } else {
+                selectedAttachTags.add(tag);
+              }
+              selectedAttachUrls.clear();
+              render();
+            });
+          }
+
           sidebarTagsContainer.appendChild(tagEl);
         });
       }
@@ -1894,19 +2182,30 @@
 
             if (showFavoritesOnly && !favorites.has(item.url)) return false;
             
-            if (activeTagFilters.size > 0) {
+            // In standard filter mode, check matching tags
+            if (currentMode === 'filter' && activeTagFilters.size > 0) {
               const itemTags = item.tags || [];
               const hasAllActiveTags = Array.from(activeTagFilters).every(t => itemTags.includes(t));
               if (!hasAllActiveTags) return false;
             }
 
             if (!query) return true;
+            
+            const docId = (item.docId || (item.id ? item.id.split('/').pop() : '')).toLowerCase();
+            const matchDocId = docId.includes(query);
             const matchName = item.name && item.name.toLowerCase().includes(query);
             const matchUrl = item.url && item.url.toLowerCase().includes(query);
             const matchTag = item.tags && item.tags.some(t => t.toLowerCase().includes(query));
-            return matchName || matchUrl || matchTag;
+
+            return matchDocId || matchName || matchUrl || matchTag;
           })
           .sort((a, b) => {
+            if (sortSelect.value === 'random') {
+              if (!randomOrderMap.has(a.id)) randomOrderMap.set(a.id, Math.random());
+              if (!randomOrderMap.has(b.id)) randomOrderMap.set(b.id, Math.random());
+              return randomOrderMap.get(a.id) - randomOrderMap.get(b.id);
+            }
+
             const timeA = a.timestamp ?? a.originalIndex ?? 0;
             const timeB = b.timestamp ?? b.originalIndex ?? 0;
             return sortSelect.value === 'newest' ? timeB - timeA : timeA - timeB;
@@ -1921,7 +2220,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               fields: { 
-                tags: { arrayValue: { values: item.tags.map(t => ({ stringValue: t })) } } 
+                tags: { arrayValue: { values: (item.tags || []).map(t => ({ stringValue: t })) } } 
               } 
             })
           });
@@ -1930,12 +2229,62 @@
         }
       }
 
+      async function updateFirestoreStatus(item) {
+        try {
+          const patchUrl = `https://firestore.googleapis.com/v1/${item.id}?updateMask.fieldPaths=status&key=${API_KEY}`;
+          await fetch(patchUrl, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fields: {
+                status: { stringValue: item.status }
+              }
+            })
+          });
+          showNotification(`Status updated to ${item.status}`);
+        } catch (error) {
+          showNotification('Error saving status update');
+        }
+      }
+
+      if (infoOverlayStatusBtn) {
+        infoOverlayStatusBtn.addEventListener('click', async () => {
+          if (!currentOverlayItem) return;
+
+          const current = (currentOverlayItem.status || 'unfiltered').toLowerCase();
+          currentOverlayItem.status = current === 'filtered' ? 'unfiltered' : 'filtered';
+
+          updateOverlayStatusBtn();
+          renderGallery();
+
+          await updateFirestoreStatus(currentOverlayItem);
+        });
+      }
+
       let currentOverlayItem = null;
+
+      function updateOverlayStatusBtn() {
+        if (!currentOverlayItem || !infoOverlayStatusBtn) return;
+        const status = (currentOverlayItem.status || 'unfiltered').toLowerCase();
+        
+        if (status === 'filtered') {
+          infoOverlayStatusBtn.textContent = '👅 Filtered';
+        } else {
+          infoOverlayStatusBtn.textContent = '💦 Unfiltered';
+        }
+      }
 
       function renderOverlayContent() {
         if (!currentOverlayItem) return;
+
+        const docPath = currentOverlayItem.id || '';
+        const docId = docPath.includes('/') ? docPath.split('/').pop() : docPath;
+
+        infoOverlayDocId.value = docId;
         infoOverlayUrl.value = currentOverlayItem.url;
         infoOverlayTagsContainer.innerHTML = '';
+
+        updateOverlayStatusBtn();
 
         (currentOverlayItem.tags || []).forEach(t => {
           const badge = document.createElement('span');
@@ -1955,6 +2304,7 @@
             if (!stillInUse) {
               allTags.delete(t);
               activeTagFilters.delete(t);
+              selectedAttachTags.delete(t);
               updateTagDatalist();
             }
 
@@ -2046,150 +2396,286 @@
         }
       });
 
+      infoOverlayDocCopyBtn.addEventListener('click', () => {
+        if (infoOverlayDocId.value) {
+          navigator.clipboard.writeText(infoOverlayDocId.value).catch(() => {});
+          showNotification('Document ID Copied!', true);
+        }
+      });
+
+      // Render Gallery for Both Modes
       function renderGallery() {
         gridContainer.innerHTML = '';
         const visibleItems = getVisibleImages();
         statsLabel.textContent = `${allImages.length} Image${allImages.length === 1 ? '' : 's'} Stored`;
 
-        updateSelectionState();
-        renderSidebarTags();
+        if (currentMode === 'filter') {
+          standardToolbarRow.style.display = 'flex';
+          selectionToolbarRow.style.display = 'flex';
+          attachBanner.classList.remove('visible');
+          updateSelectionState();
 
-        if (visibleItems.length === 0) {
-          gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1 / -1; color: var(--text-muted); padding: 50px; font-weight: 500;">No images match your query.</div>';
-          return;
+          if (visibleItems.length === 0) {
+            gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1 / -1; color: var(--text-muted); padding: 50px; font-weight: 500;">No images match your query.</div>';
+            return;
+          }
+
+          visibleItems.forEach((item, index) => {
+            const isSelected = selectedUrls.has(item.url);
+            const card = document.createElement('div');
+            card.className = `masonry-item ${isSelected ? 'selected' : ''}`;
+
+            const img = document.createElement('img');
+            img.referrerPolicy = 'no-referrer';
+            img.src = item.url;
+            img.loading = 'lazy';
+            img.alt = item.name || 'Gallery photo';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'card-overlay';
+
+            const topRow = document.createElement('div');
+            topRow.className = 'overlay-top';
+
+            const tickBtn = document.createElement('span');
+            tickBtn.className = `classic-blue-tick ${isSelected ? 'selected' : ''}`;
+            tickBtn.title = 'Select';
+            tickBtn.textContent = '✓';
+            
+            tickBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (selectedUrls.has(item.url)) {
+                selectedUrls.delete(item.url);
+                card.classList.remove('selected');
+                tickBtn.classList.remove('selected');
+              } else {
+                selectedUrls.add(item.url);
+                card.classList.add('selected');
+                tickBtn.classList.add('selected');
+              }
+              updateSelectionState();
+            });
+
+            const favBtn = document.createElement('button');
+            const isFav = favorites.has(item.url);
+            favBtn.className = `action-btn fav-btn ${isFav ? 'active' : ''}`;
+            favBtn.title = isFav ? 'Remove Favorite' : 'Save Favorite';
+            favBtn.innerHTML = isFav ? '♥' : '♡';
+            favBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              toggleFavorite(item, true);
+            });
+
+            const infoBtn = document.createElement('button');
+            infoBtn.className = 'action-btn info-btn';
+            infoBtn.title = 'Info & Tags';
+            infoBtn.innerHTML = '𝒊';
+            infoBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openInfoOverlay(item);
+            });
+
+            const topActionsRight = document.createElement('div');
+            topActionsRight.style.display = 'flex';
+            topActionsRight.style.gap = '8px';
+            topActionsRight.appendChild(infoBtn);
+            topActionsRight.appendChild(favBtn);
+
+            topRow.appendChild(tickBtn);
+            topRow.appendChild(topActionsRight);
+
+            const bottomRow = document.createElement('div');
+            bottomRow.className = 'overlay-bottom';
+
+            const dlBtn = document.createElement('button');
+            dlBtn.className = 'action-btn';
+            dlBtn.title = 'Download';
+            dlBtn.innerHTML = '↓';
+            dlBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              downloadSingleImage(item.url, item.name);
+            });
+
+            bottomRow.appendChild(dlBtn);
+            overlay.appendChild(topRow);
+            overlay.appendChild(bottomRow);
+
+            const toggleCardButtonsVisibility = (e) => {
+              if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+
+              const sampleBtn = card.querySelector('.action-btn');
+              const isVisible = sampleBtn && window.getComputedStyle(sampleBtn).opacity !== '0';
+
+              if (isVisible) {
+                card.classList.remove('buttons-pinned');
+                card.classList.add('buttons-hidden');
+              } else {
+                card.classList.remove('buttons-hidden');
+                card.classList.add('buttons-pinned');
+              }
+            };
+
+            card.addEventListener('contextmenu', toggleCardButtonsVisibility);
+
+            let touchTimer = null;
+            let isLongPress = false;
+
+            card.addEventListener('touchstart', (e) => {
+              isLongPress = false;
+              touchTimer = setTimeout(() => {
+                isLongPress = true;
+                toggleCardButtonsVisibility(e);
+              }, 500);
+            }, { passive: false });
+
+            card.addEventListener('touchend', (e) => {
+              clearTimeout(touchTimer);
+              if (isLongPress) e.preventDefault();
+            });
+
+            card.addEventListener('touchmove', () => {
+              clearTimeout(touchTimer);
+            });
+
+            card.addEventListener('click', (e) => {
+              if (isLongPress) return;
+              openPopupByIndex(index);
+            });
+
+            card.appendChild(img);
+            card.appendChild(overlay);
+            gridContainer.appendChild(card);
+          });
+        } else {
+          // Attach Mode Active
+          standardToolbarRow.style.display = 'none';
+          selectionToolbarRow.style.display = 'none';
+          attachBanner.classList.add('visible');
+
+          const chosenTagsArr = Array.from(selectedAttachTags);
+          let eligibleCount = 0;
+
+          if (chosenTagsArr.length === 0) {
+            bannerInstruction.textContent = '1. Click tag(s) in sidebar (or add a new one) to begin.';
+            selectAllEligibleBtn.style.display = 'none';
+          } else {
+            selectAllEligibleBtn.style.display = 'inline-flex';
+            bannerInstruction.textContent = `Attaching [${chosenTagsArr.join(', ')}]. Click unattached images below:`;
+          }
+
+          visibleItems.forEach((item) => {
+            const isEligible = chosenTagsArr.length > 0 && !chosenTagsArr.every(t => (item.tags || []).includes(t));
+            if (isEligible) eligibleCount++;
+
+            const isSelected = selectedAttachUrls.has(item.url);
+
+            const card = document.createElement('div');
+            card.className = `masonry-item ${isEligible ? 'eligible' : 'already-tagged'} ${isSelected ? 'selected-for-attach' : ''}`;
+
+            const img = document.createElement('img');
+            img.referrerPolicy = 'no-referrer';
+            img.src = item.url;
+            img.loading = 'lazy';
+            img.alt = item.name || 'Gallery photo';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'card-overlay';
+
+            const topRow = document.createElement('div');
+            topRow.className = 'overlay-top';
+
+            const tickBtn = document.createElement('span');
+            tickBtn.className = `classic-blue-tick attach-tick-indicator ${isSelected ? 'selected' : ''}`;
+            tickBtn.title = isEligible ? 'Toggle selection for attach' : 'Already tagged';
+            tickBtn.textContent = '✓';
+
+            const infoBtn = document.createElement('button');
+            infoBtn.className = 'action-btn info-btn';
+            infoBtn.title = 'Info & Tags';
+            infoBtn.innerHTML = '𝒊';
+            infoBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openInfoOverlay(item);
+            });
+
+            topRow.appendChild(tickBtn);
+            topRow.appendChild(infoBtn);
+            overlay.appendChild(topRow);
+
+            if (isEligible) {
+              card.onclick = () => {
+                if (selectedAttachUrls.has(item.url)) {
+                  selectedAttachUrls.delete(item.url);
+                } else {
+                  selectedAttachUrls.add(item.url);
+                }
+                renderGallery();
+              };
+            }
+
+            card.appendChild(img);
+            card.appendChild(overlay);
+            gridContainer.appendChild(card);
+          });
+
+          applyAttachBtn.disabled = selectedAttachUrls.size === 0 || chosenTagsArr.length === 0;
+          applyAttachBtn.textContent = `Attach [${chosenTagsArr.length} Tag(s)] to ${selectedAttachUrls.size} Image(s)`;
+        }
+      }
+
+      // Attach Mode: Select All Eligible Toggle
+      selectAllEligibleBtn.addEventListener('click', () => {
+        const chosenTagsArr = Array.from(selectedAttachTags);
+        if (chosenTagsArr.length === 0) return;
+
+        const visibleItems = getVisibleImages();
+        const eligible = visibleItems.filter(img => !chosenTagsArr.every(t => (img.tags || []).includes(t)));
+
+        if (selectedAttachUrls.size === eligible.length) {
+          selectedAttachUrls.clear();
+        } else {
+          eligible.forEach(img => selectedAttachUrls.add(img.url));
+        }
+        renderGallery();
+      });
+
+      // Attach Mode: Commit Changes to Cloud & Memory
+      applyAttachBtn.addEventListener('click', async () => {
+        const tagsToAttach = Array.from(selectedAttachTags);
+        if (tagsToAttach.length === 0 || selectedAttachUrls.size === 0) return;
+
+        const targets = allImages.filter(img => selectedAttachUrls.has(img.url));
+        showNotification(`Attaching tags to ${targets.length} images...`);
+
+        // Apply changes in-memory
+        targets.forEach(img => {
+          if (!img.tags) img.tags = [];
+          tagsToAttach.forEach(t => {
+            if (!img.tags.includes(t)) img.tags.push(t);
+            allTags.add(t);
+          });
+        });
+
+        // Persist to Firestore in parallel
+        const updatePromises = targets.map(item => updateFirestoreTags(item));
+        try {
+          await Promise.allSettled(updatePromises);
+          showNotification(`Successfully attached tags to ${targets.length} images!`);
+        } catch (e) {
+          showNotification('Tags attached locally; some sync operations failed.');
         }
 
-        visibleItems.forEach((item, index) => {
-          const isSelected = selectedUrls.has(item.url);
-          const card = document.createElement('div');
-          card.className = `masonry-item ${isSelected ? 'selected' : ''}`;
+        selectedAttachUrls.clear();
+        updateTagDatalist();
+        render();
+      });
 
-          const img = document.createElement('img');
-          img.referrerPolicy = 'no-referrer';
-          img.src = item.url;
-          img.loading = 'lazy';
-          img.alt = item.name || 'Gallery photo';
-
-          const overlay = document.createElement('div');
-          overlay.className = 'card-overlay';
-
-          const topRow = document.createElement('div');
-          topRow.className = 'overlay-top';
-
-          const tickBtn = document.createElement('span');
-          tickBtn.className = `classic-blue-tick ${isSelected ? 'selected' : ''}`;
-          tickBtn.title = 'Select';
-          tickBtn.textContent = '✓';
-          
-          tickBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (selectedUrls.has(item.url)) {
-              selectedUrls.delete(item.url);
-              card.classList.remove('selected');
-              tickBtn.classList.remove('selected');
-            } else {
-              selectedUrls.add(item.url);
-              card.classList.add('selected');
-              tickBtn.classList.add('selected');
-            }
-            updateSelectionState();
-          });
-
-          const favBtn = document.createElement('button');
-          const isFav = favorites.has(item.url);
-          favBtn.className = `action-btn fav-btn ${isFav ? 'active' : ''}`;
-          favBtn.title = isFav ? 'Remove Favorite' : 'Save Favorite';
-          favBtn.innerHTML = isFav ? '♥' : '♡';
-          favBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleFavorite(item, true);
-          });
-
-          const infoBtn = document.createElement('button');
-          infoBtn.className = 'action-btn info-btn';
-          infoBtn.title = 'Info & Tags';
-          infoBtn.innerHTML = '𝒊';
-          infoBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openInfoOverlay(item);
-          });
-
-          const topActionsRight = document.createElement('div');
-          topActionsRight.style.display = 'flex';
-          topActionsRight.style.gap = '8px';
-          topActionsRight.appendChild(infoBtn);
-          topActionsRight.appendChild(favBtn);
-
-          topRow.appendChild(tickBtn);
-          topRow.appendChild(topActionsRight);
-
-          const bottomRow = document.createElement('div');
-          bottomRow.className = 'overlay-bottom';
-
-          const dlBtn = document.createElement('button');
-          dlBtn.className = 'action-btn';
-          dlBtn.title = 'Download';
-          dlBtn.innerHTML = '↓';
-          dlBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            downloadSingleImage(item.url, item.name);
-          });
-
-          bottomRow.appendChild(dlBtn);
-          overlay.appendChild(topRow);
-          overlay.appendChild(bottomRow);
-
-          const toggleCardButtonsVisibility = (e) => {
-            if (e) {
-              e.preventDefault();
-              e.stopPropagation();
-            }
-
-            const sampleBtn = card.querySelector('.action-btn');
-            const isVisible = sampleBtn && window.getComputedStyle(sampleBtn).opacity !== '0';
-
-            if (isVisible) {
-              card.classList.remove('buttons-pinned');
-              card.classList.add('buttons-hidden');
-            } else {
-              card.classList.remove('buttons-hidden');
-              card.classList.add('buttons-pinned');
-            }
-          };
-
-          card.addEventListener('contextmenu', toggleCardButtonsVisibility);
-
-          let touchTimer = null;
-          let isLongPress = false;
-
-          card.addEventListener('touchstart', (e) => {
-            isLongPress = false;
-            touchTimer = setTimeout(() => {
-              isLongPress = true;
-              toggleCardButtonsVisibility(e);
-            }, 500);
-          }, { passive: false });
-
-          card.addEventListener('touchend', (e) => {
-            clearTimeout(touchTimer);
-            if (isLongPress) {
-              e.preventDefault();
-            }
-          });
-
-          card.addEventListener('touchmove', () => {
-            clearTimeout(touchTimer);
-          });
-
-          card.addEventListener('click', (e) => {
-            if (isLongPress) return;
-            openPopupByIndex(index);
-          });
-
-          card.appendChild(img);
-          card.appendChild(overlay);
-          gridContainer.appendChild(card);
-        });
+      function render() {
+        renderSidebarTags();
+        renderGallery();
       }
 
       function updateSelectionState() {
@@ -2346,15 +2832,24 @@
         renderSidebarTags();
       });
 
-      sortSelect.addEventListener('change', renderGallery);
+      sortSelect.addEventListener('change', () => {
+        if (sortSelect.value === 'random') {
+          randomOrderMap.clear();
+        }
+        renderGallery();
+      });
 
       exportJsonBtn.addEventListener('click', () => {
-        const exportData = allImages.map(img => ({
-          url: img.url,
-          status: img.status || 'unfiltered',
-          favorite: favorites.has(img.url),
-          tags: img.tags || []
-        }));
+        const exportData = allImages.map(img => {
+          const docId = img.id && img.id.includes('/') ? img.id.split('/').pop() : img.id;
+          return {
+            docId: docId,
+            url: img.url,
+            status: img.status || 'unfiltered',
+            favorite: favorites.has(img.url),
+            tags: img.tags || []
+          };
+        });
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         triggerSafeFileDownload(blob, `gallery_backup_${Date.now()}.json`);
         showNotification('Backup exported.');
@@ -3045,9 +3540,11 @@
 
               const rawDate = fields.date?.timestampValue || doc.createTime;
               const timestamp = rawDate ? new Date(rawDate).getTime() : index;
+              const docId = doc.name ? doc.name.split('/').pop() : '';
 
               return {
                 id: doc.name, 
+                docId: docId,
                 url: url,
                 status: status,
                 name: sanitizeFilename(url), 
@@ -3057,16 +3554,13 @@
               };
             });
             updateTagDatalist();
-            renderSidebarTags();
-            renderGallery();
+            render();
           })
           .catch(err => {
             console.error(err);
             loadingMessage.textContent = 'Could not fetch gallery items.';
           });
       }
-
-      const galleryTitleBtn = document.getElementById('galleryTitleBtn');
 
       galleryTitleBtn.addEventListener('click', () => {
         staticTop.classList.remove('header-hidden', 'header-scrolled', 'is-sticky'); 
