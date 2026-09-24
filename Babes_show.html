@@ -35,7 +35,6 @@
         
         --card-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.1);
 
-        /* Configurable Transition Duration */
         --transition-speed: 0.42s;
         --transition-easing: cubic-bezier(0.25, 1, 0.5, 1);
       }
@@ -73,7 +72,6 @@
         -moz-osx-font-smoothing: grayscale;
       }
 
-      /* Authentication UI */
       #auth-wrapper {
         display: flex; 
         align-items: center; 
@@ -203,7 +201,6 @@
           display: block;
         }
 
-        /* Prevent Attach Mode UI on mobile */
         #modeToggleBtn,
         #tagAddRow,
         #attachBanner {
@@ -491,7 +488,6 @@
         flex-wrap: wrap;
       }
 
-      /* Attach Mode Banner */
       .mode-banner {
         display: none;
         background: rgba(16, 185, 129, 0.12);
@@ -721,7 +717,6 @@
         background: var(--control-bg);
       }
 
-      /* Attach Mode Specific Card Styles */
       body.attach-mode .masonry-item.eligible {
         cursor: pointer;
       }
@@ -834,6 +829,12 @@
         background: var(--pink-fav);
         border-color: transparent;
         color: #ffffff;
+      }
+
+      .action-btn.card-del-btn:hover {
+        background: #ef4444;
+        color: white;
+        border-color: #ef4444;
       }
 
       .overlay-modal {
@@ -1210,16 +1211,6 @@
         cursor: grabbing;
       }
 
-      .anim-slide-up {
-        transform: translateY(-140px) scale(0.96) !important;
-        opacity: 0 !important;
-      }
-
-      .anim-slide-down {
-        transform: translateY(140px) scale(0.96) !important;
-        opacity: 0 !important;
-      }
-
       .anim-slide-left {
         transform: translateX(-140px) scale(0.96) !important;
         opacity: 0 !important;
@@ -1376,10 +1367,6 @@
         background: var(--control-hover);
         transform: scale(1.08);
       }
-      .status-toggle-btn.filtered {
-        background: rgba(239, 68, 68, 0.15);
-        border-color: rgba(239, 68, 68, 0.3);
-      }
     </style>
 </head>
 <body>
@@ -1445,13 +1432,18 @@
           </button>
         </div>
 
-        <!-- Inline Tag Adder (Active in Attach Mode) -->
         <div class="tag-add-container" id="tagAddRow">
           <input type="text" id="newTagInput" class="input-control" placeholder="New tag name..." autocomplete="off" style="padding: 8px 12px; font-size: 13px;" />
           <button id="addNewTagBtn" class="btn-small">+ Add</button>
         </div>
 
         <div id="sidebarTags" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+      </div>
+
+      <div class="sidebar-group">
+        <span class="sidebar-group-title">Duplicate Finder</span>
+        <button id="findUrlDupsBtn" class="btn btn-toggle">🔗 URL Duplicates</button>
+        <button id="findVisualDupsBtn" class="btn btn-toggle">👁️ Visual Duplicates</button>
       </div>
 
       <div class="sidebar-group">
@@ -1516,7 +1508,6 @@
             </div>
           </div>
 
-          <!-- Attach Mode Notification Bar -->
           <div class="mode-banner" id="attachBanner">
             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
               <span id="bannerInstruction" style="font-weight: 600;">1. Click tag(s) in sidebar, then pick unattached images below.</span>
@@ -1572,6 +1563,7 @@
       </div>
     </div>
 
+    <!-- Lightbox Modal -->
     <div class="modal" id="imageModal">
       <div class="modal-slideshow-bar" id="modalSlideshowBar">
         <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Toggle Auto Slideshow">
@@ -1613,6 +1605,7 @@
       </div>
     </div>
 
+    <!-- Confirm Dialog Overlay -->
     <div class="confirm-overlay" id="confirmOverlay">
       <div class="confirm-dialog">
         <h3 id="confirmTitle">Remove Media</h3>
@@ -1651,7 +1644,6 @@
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
 
-      // Authentication Elements
       const authWrapper = document.getElementById("auth-wrapper");
       const emailInput = document.getElementById("email");
       const passwordInput = document.getElementById("password");
@@ -1737,7 +1729,6 @@
       const headerRevealBtn = document.getElementById('headerRevealBtn');
       const galleryTitleBtn = document.getElementById('galleryTitleBtn');
 
-      // Tag Attach Elements
       const sectionTitle = document.getElementById('sectionTitle');
       const modeToggleBtn = document.getElementById('modeToggleBtn');
       const tagAddRow = document.getElementById('tagAddRow');
@@ -1750,7 +1741,9 @@
       const standardToolbarRow = document.getElementById('standardToolbarRow');
       const selectionToolbarRow = document.getElementById('selectionToolbarRow');
 
-      // Lightbox Elements
+      const findUrlDupsBtn = document.getElementById('findUrlDupsBtn');
+      const findVisualDupsBtn = document.getElementById('findVisualDupsBtn');
+
       const imageModal = document.getElementById('imageModal');
       const modalViewer = document.getElementById('modalViewer');
       const modalImg = document.getElementById('modalImg');
@@ -1765,7 +1758,6 @@
       const modalDownloadBtn = document.getElementById('modalDownloadBtn');
       const modalDeleteBtn = document.getElementById('modalDeleteBtn');
 
-      // Detail Modal Elements
       const infoOverlayModal = document.getElementById('infoOverlayModal');
       const closeInfoOverlayBtn = document.getElementById('closeInfoOverlayBtn');
       const infoOverlayUrl = document.getElementById('infoOverlayUrl');
@@ -1787,24 +1779,24 @@
 
       const DEFAULT_TAG = null;
 
-      // App State
       let allImages = [];
-      let selectedUrls = new Set();
+      let activeDuplicateGroups = null; // null = standard view
+      let activeDuplicateMode = null; // 'url' | 'visual' | null
+      let selectedIds = new Set();
       let favorites = new Set();
       let showFavoritesOnly = false;
       let allSelectedState = false;
       let ignoreScrollEvents = false;
       let randomOrderMap = new Map();
-      let currentStatusFilter = 'all'; // 'all' | 'filtered' | 'unfiltered'
+      let currentStatusFilter = 'all';
       
       let allTags = new Set();
       let activeTagFilters = new Set();
       const sidebarTagsContainer = document.getElementById('sidebarTags');
 
-      // Attach Mode State
-      let currentMode = 'filter'; // 'filter' or 'attach'
+      let currentMode = 'filter';
       let selectedAttachTags = new Set();
-      let selectedAttachUrls = new Set();
+      let selectedAttachIds = new Set();
 
       let actionHistory = [];
       let currentHistoryIndex = -1;
@@ -2040,9 +2032,7 @@
         }
       }
 
-      // Mode Switch: Filter vs Attach
       modeToggleBtn.addEventListener('click', () => {
-        // Disallow entering attach mode on mobile screens
         if (currentMode === 'filter' && window.innerWidth <= 768) {
           showNotification('Tag Attach mode is only available on desktop screens.');
           return;
@@ -2058,7 +2048,7 @@
           attachBanner.classList.add('visible');
           
           selectedAttachTags = new Set(activeTagFilters);
-          selectedAttachUrls.clear();
+          selectedAttachIds.clear();
         } else {
           currentMode = 'filter';
           document.body.classList.remove('attach-mode');
@@ -2069,7 +2059,7 @@
           attachBanner.classList.remove('visible');
 
           selectedAttachTags.clear();
-          selectedAttachUrls.clear();
+          selectedAttachIds.clear();
         }
         render();
       });
@@ -2085,12 +2075,11 @@
           attachBanner.classList.remove('visible');
 
           selectedAttachTags.clear();
-          selectedAttachUrls.clear();
+          selectedAttachIds.clear();
           render();
         }
       });
 
-      // Quick Tag Addition
       function addNewTagInline() {
         const tag = newTagInput.value.trim();
         if (!tag) return;
@@ -2142,7 +2131,6 @@
               renderSidebarTags();
             });
           } else {
-            // Attach Mode Tag Selection
             if (selectedAttachTags.has(tag)) tagEl.classList.add('attach-selected');
             tagEl.addEventListener('click', () => {
               if (selectedAttachTags.has(tag)) {
@@ -2150,7 +2138,7 @@
               } else {
                 selectedAttachTags.add(tag);
               }
-              selectedAttachUrls.clear();
+              selectedAttachIds.clear();
               render();
             });
           }
@@ -2171,6 +2159,10 @@
       }
 
       function getVisibleImages() {
+        if (activeDuplicateGroups && activeDuplicateGroups.length > 0) {
+          return activeDuplicateGroups.flat();
+        }
+
         const query = searchInput.value.trim().toLowerCase();
 
         return allImages
@@ -2182,7 +2174,6 @@
 
             if (showFavoritesOnly && !favorites.has(item.url)) return false;
             
-            // In standard filter mode, check matching tags
             if (currentMode === 'filter' && activeTagFilters.size > 0) {
               const itemTags = item.tags || [];
               const hasAllActiveTags = Array.from(activeTagFilters).every(t => itemTags.includes(t));
@@ -2212,9 +2203,16 @@
           });
       }
 
+      function getDocId(itemOrId) {
+        if (!itemOrId) return '';
+        const raw = typeof itemOrId === 'string' ? itemOrId : (itemOrId.id || itemOrId.docId || '');
+        return raw.includes('/') ? raw.split('/').pop() : raw;
+      }
+
       async function updateFirestoreTags(item) {
         try {
-          const patchUrl = `https://firestore.googleapis.com/v1/${item.id}?updateMask.fieldPaths=tags&key=${API_KEY}`;
+          const docId = getDocId(item);
+          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=tags&key=${API_KEY}`;
           await fetch(patchUrl, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -2231,7 +2229,8 @@
 
       async function updateFirestoreStatus(item) {
         try {
-          const patchUrl = `https://firestore.googleapis.com/v1/${item.id}?updateMask.fieldPaths=status&key=${API_KEY}`;
+          const docId = getDocId(item);
+          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=status&key=${API_KEY}`;
           await fetch(patchUrl, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -2244,6 +2243,19 @@
           showNotification(`Status updated to ${item.status}`);
         } catch (error) {
           showNotification('Error saving status update');
+        }
+      }
+
+      let currentOverlayItem = null;
+
+      function updateOverlayStatusBtn() {
+        if (!currentOverlayItem || !infoOverlayStatusBtn) return;
+        const status = (currentOverlayItem.status || 'unfiltered').toLowerCase();
+        
+        if (status === 'filtered') {
+          infoOverlayStatusBtn.textContent = '👅 Filtered';
+        } else {
+          infoOverlayStatusBtn.textContent = '💦 Unfiltered';
         }
       }
 
@@ -2261,24 +2273,10 @@
         });
       }
 
-      let currentOverlayItem = null;
-
-      function updateOverlayStatusBtn() {
-        if (!currentOverlayItem || !infoOverlayStatusBtn) return;
-        const status = (currentOverlayItem.status || 'unfiltered').toLowerCase();
-        
-        if (status === 'filtered') {
-          infoOverlayStatusBtn.textContent = '👅 Filtered';
-        } else {
-          infoOverlayStatusBtn.textContent = '💦 Unfiltered';
-        }
-      }
-
       function renderOverlayContent() {
         if (!currentOverlayItem) return;
 
-        const docPath = currentOverlayItem.id || '';
-        const docId = docPath.includes('/') ? docPath.split('/').pop() : docPath;
+        const docId = getDocId(currentOverlayItem);
 
         infoOverlayDocId.value = docId;
         infoOverlayUrl.value = currentOverlayItem.url;
@@ -2403,7 +2401,80 @@
         }
       });
 
-      // Render Gallery for Both Modes
+      function executeDeleteDocs(idsToDelete) {
+        const idSet = new Set(idsToDelete);
+        const itemsToDelete = allImages.filter(img => idSet.has(img.id));
+        if (itemsToDelete.length === 0) return;
+
+        pushToHistory({
+          type: 'delete',
+          items: [...itemsToDelete]
+        });
+
+        allImages = allImages.filter(img => !idSet.has(img.id));
+
+        itemsToDelete.forEach(deletedItem => {
+          const stillExists = allImages.some(img => img.url === deletedItem.url);
+          if (!stillExists) {
+            favorites.delete(deletedItem.url);
+          }
+        });
+
+        itemsToDelete.forEach(item => selectedIds.delete(item.id));
+
+        // 1. Trigger cloud deletion FIRST so it always executes
+        const deletePromises = itemsToDelete.map(item => {
+          const docId = getDocId(item);
+          if (docId) {
+            const deleteUrl = `${FIRESTORE_BASE}/${docId}?key=${API_KEY}`;
+            return fetch(deleteUrl, { method: 'DELETE' });
+          }
+          return Promise.resolve();
+        });
+        Promise.allSettled(deletePromises).catch(() => {});
+
+        showNotification(`Removed ${itemsToDelete.length} item(s)...`);
+
+        // 2. Handle duplicate group cleanup
+        if (activeDuplicateGroups) {
+          activeDuplicateGroups = activeDuplicateGroups
+            .map(group => group.filter(img => allImages.some(a => a.id === img.id)))
+            .filter(group => group.length > 1);
+
+          if (activeDuplicateGroups.length === 0) {
+            exitDuplicateView();
+            return;
+          }
+        }
+
+        renderGallery();
+      }
+
+      let pendingDeletionIds = [];
+
+      function promptDelete(ids, title = 'Delete Selected?') {
+        pendingDeletionIds = Array.isArray(ids) ? ids : [ids];
+        if (pendingDeletionIds.length === 0) return;
+        confirmTitle.textContent = title;
+        confirmOverlay.classList.add('open');
+      }
+
+      confirmDeleteBtn.addEventListener('click', () => {
+        confirmOverlay.classList.remove('open');
+        if (imageModal.classList.contains('open')) {
+          closeModal();
+        }
+        if (pendingDeletionIds.length > 0) {
+          executeDeleteDocs(pendingDeletionIds);
+          pendingDeletionIds = [];
+        }
+      });
+
+      cancelDeleteBtn.addEventListener('click', () => {
+        confirmOverlay.classList.remove('open');
+        pendingDeletionIds = [];
+      });
+
       function renderGallery() {
         gridContainer.innerHTML = '';
         const visibleItems = getVisibleImages();
@@ -2421,9 +2492,10 @@
           }
 
           visibleItems.forEach((item, index) => {
-            const isSelected = selectedUrls.has(item.url);
+            const isSelected = selectedIds.has(item.id);
             const card = document.createElement('div');
             card.className = `masonry-item ${isSelected ? 'selected' : ''}`;
+            card.dataset.index = index;
 
             const img = document.createElement('img');
             img.referrerPolicy = 'no-referrer';
@@ -2444,12 +2516,12 @@
             
             tickBtn.addEventListener('click', (e) => {
               e.stopPropagation();
-              if (selectedUrls.has(item.url)) {
-                selectedUrls.delete(item.url);
+              if (selectedIds.has(item.id)) {
+                selectedIds.delete(item.id);
                 card.classList.remove('selected');
                 tickBtn.classList.remove('selected');
               } else {
-                selectedUrls.add(item.url);
+                selectedIds.add(item.id);
                 card.classList.add('selected');
                 tickBtn.classList.add('selected');
               }
@@ -2486,6 +2558,7 @@
 
             const bottomRow = document.createElement('div');
             bottomRow.className = 'overlay-bottom';
+            bottomRow.style.gap = '8px';
 
             const dlBtn = document.createElement('button');
             dlBtn.className = 'action-btn';
@@ -2496,7 +2569,17 @@
               downloadSingleImage(item.url, item.name);
             });
 
+            const cardDelBtn = document.createElement('button');
+            cardDelBtn.className = 'action-btn card-del-btn';
+            cardDelBtn.title = 'Delete Image';
+            cardDelBtn.innerHTML = '🗑️';
+            cardDelBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              promptDelete([item.id], 'Delete Image?');
+            });
+
             bottomRow.appendChild(dlBtn);
+            bottomRow.appendChild(cardDelBtn);
             overlay.appendChild(topRow);
             overlay.appendChild(bottomRow);
 
@@ -2550,7 +2633,6 @@
             gridContainer.appendChild(card);
           });
         } else {
-          // Attach Mode Active
           standardToolbarRow.style.display = 'none';
           selectionToolbarRow.style.display = 'none';
           attachBanner.classList.add('visible');
@@ -2570,7 +2652,7 @@
             const isEligible = chosenTagsArr.length > 0 && !chosenTagsArr.every(t => (item.tags || []).includes(t));
             if (isEligible) eligibleCount++;
 
-            const isSelected = selectedAttachUrls.has(item.url);
+            const isSelected = selectedAttachIds.has(item.id);
 
             const card = document.createElement('div');
             card.className = `masonry-item ${isEligible ? 'eligible' : 'already-tagged'} ${isSelected ? 'selected-for-attach' : ''}`;
@@ -2607,10 +2689,10 @@
 
             if (isEligible) {
               card.onclick = () => {
-                if (selectedAttachUrls.has(item.url)) {
-                  selectedAttachUrls.delete(item.url);
+                if (selectedAttachIds.has(item.id)) {
+                  selectedAttachIds.delete(item.id);
                 } else {
-                  selectedAttachUrls.add(item.url);
+                  selectedAttachIds.add(item.id);
                 }
                 renderGallery();
               };
@@ -2621,12 +2703,11 @@
             gridContainer.appendChild(card);
           });
 
-          applyAttachBtn.disabled = selectedAttachUrls.size === 0 || chosenTagsArr.length === 0;
-          applyAttachBtn.textContent = `Attach [${chosenTagsArr.length} Tag(s)] to ${selectedAttachUrls.size} Image(s)`;
+          applyAttachBtn.disabled = selectedAttachIds.size === 0 || chosenTagsArr.length === 0;
+          applyAttachBtn.textContent = `Attach [${chosenTagsArr.length} Tag(s)] to ${selectedAttachIds.size} Image(s)`;
         }
       }
 
-      // Attach Mode: Select All Eligible Toggle
       selectAllEligibleBtn.addEventListener('click', () => {
         const chosenTagsArr = Array.from(selectedAttachTags);
         if (chosenTagsArr.length === 0) return;
@@ -2634,23 +2715,21 @@
         const visibleItems = getVisibleImages();
         const eligible = visibleItems.filter(img => !chosenTagsArr.every(t => (img.tags || []).includes(t)));
 
-        if (selectedAttachUrls.size === eligible.length) {
-          selectedAttachUrls.clear();
+        if (selectedAttachIds.size === eligible.length) {
+          selectedAttachIds.clear();
         } else {
-          eligible.forEach(img => selectedAttachUrls.add(img.url));
+          eligible.forEach(img => selectedAttachIds.add(img.id));
         }
         renderGallery();
       });
 
-      // Attach Mode: Commit Changes to Cloud & Memory
       applyAttachBtn.addEventListener('click', async () => {
         const tagsToAttach = Array.from(selectedAttachTags);
-        if (tagsToAttach.length === 0 || selectedAttachUrls.size === 0) return;
+        if (tagsToAttach.length === 0 || selectedAttachIds.size === 0) return;
 
-        const targets = allImages.filter(img => selectedAttachUrls.has(img.url));
+        const targets = allImages.filter(img => selectedAttachIds.has(img.id));
         showNotification(`Attaching tags to ${targets.length} images...`);
 
-        // Apply changes in-memory
         targets.forEach(img => {
           if (!img.tags) img.tags = [];
           tagsToAttach.forEach(t => {
@@ -2659,7 +2738,6 @@
           });
         });
 
-        // Persist to Firestore in parallel
         const updatePromises = targets.map(item => updateFirestoreTags(item));
         try {
           await Promise.allSettled(updatePromises);
@@ -2668,7 +2746,7 @@
           showNotification('Tags attached locally; some sync operations failed.');
         }
 
-        selectedAttachUrls.clear();
+        selectedAttachIds.clear();
         updateTagDatalist();
         render();
       });
@@ -2678,12 +2756,45 @@
         renderGallery();
       }
 
+      function countSelectedDuplicates() {
+        if (selectedIds.size === 0) return 0;
+        
+        if (activeDuplicateGroups && activeDuplicateGroups.length > 0) {
+          let dupsCount = 0;
+          activeDuplicateGroups.forEach(group => {
+            for (let i = 1; i < group.length; i++) {
+              if (selectedIds.has(group[i].id)) dupsCount++;
+            }
+          });
+          return dupsCount;
+        }
+
+        const selectedItems = allImages.filter(img => selectedIds.has(img.id));
+        const urlMap = new Map();
+        selectedItems.forEach(item => {
+          const norm = normalizeUrl(item.url);
+          urlMap.set(norm, (urlMap.get(norm) || 0) + 1);
+        });
+
+        let dupsCount = 0;
+        for (const count of urlMap.values()) {
+          if (count > 1) dupsCount += (count - 1);
+        }
+        return dupsCount;
+      }
+
       function updateSelectionState() {
         ignoreScrollEvents = true;
 
         const visible = getVisibleImages();
-        const count = selectedUrls.size;
-        selectedCountBadge.textContent = `(${count} selected)`;
+        const count = selectedIds.size;
+        const duplicateCount = countSelectedDuplicates();
+
+        if (duplicateCount > 0) {
+          selectedCountBadge.textContent = `(${count} selected, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''})`;
+        } else {
+          selectedCountBadge.textContent = `(${count} selected)`;
+        }
 
         if (count > 0) {
           selectedActionsGroup.classList.add('active');
@@ -2691,7 +2802,7 @@
           selectedActionsGroup.classList.remove('active');
         }
 
-        if (visible.length > 0 && visible.every(item => selectedUrls.has(item.url))) {
+        if (visible.length > 0 && visible.every(item => selectedIds.has(item.id))) {
           selectAllTick.classList.add('selected');
           allSelectedState = true;
         } else {
@@ -2713,15 +2824,15 @@
         allSelectedState = !allSelectedState;
         
         if (allSelectedState) {
-          visible.forEach(item => selectedUrls.add(item.url));
+          visible.forEach(item => selectedIds.add(item.id));
         } else {
-          visible.forEach(item => selectedUrls.delete(item.url));
+          visible.forEach(item => selectedIds.delete(item.id));
         }
         renderGallery();
       });
 
       downloadSelectedBtn.addEventListener('click', () => {
-        const selectedItems = allImages.filter(img => selectedUrls.has(img.url));
+        const selectedItems = allImages.filter(img => selectedIds.has(img.id));
         downloadZipArchive(selectedItems, 'selected-gallery.zip');
       });
 
@@ -2750,7 +2861,8 @@
         renderGallery();
 
         try {
-          const patchUrl = `https://firestore.googleapis.com/v1/${item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`;
+          const docId = getDocId(item);
+          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=favorite&key=${API_KEY}`;
           fetch(patchUrl, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -2760,41 +2872,11 @@
       }
 
       deleteSelectedBtn.addEventListener('click', () => {
-        const count = selectedUrls.size;
+        const count = selectedIds.size;
         if (count === 0) return;
-        confirmTitle.textContent = `Delete ${count} Image${count > 1 ? 's' : ''}?`;
-        confirmOverlay.classList.add('open');
+        promptDelete(Array.from(selectedIds), `Delete ${count} Image${count > 1 ? 's' : ''}?`);
       });
 
-      confirmDeleteBtn.addEventListener('click', async () => {
-        const itemsToDelete = allImages.filter(img => selectedUrls.has(img.url));
-        
-        pushToHistory({
-          type: 'delete',
-          items: [...itemsToDelete]
-        });
-        
-        allImages = allImages.filter(img => !selectedUrls.has(img.url));
-        selectedUrls.forEach(url => favorites.delete(url));
-        selectedUrls.clear();
-        
-        confirmOverlay.classList.remove('open');
-        renderGallery();
-        showNotification('Removing selected items...');
-
-        const deletePromises = itemsToDelete.map(item => {
-          if (item.id) {
-            const deleteUrl = `https://firestore.googleapis.com/v1/${item.id}?key=${API_KEY}`;
-            return fetch(deleteUrl, { method: 'DELETE' });
-          }
-          return Promise.resolve();
-        });
-
-        try { await Promise.allSettled(deletePromises); } catch (e) { }
-      });
-
-      cancelDeleteBtn.addEventListener('click', () => confirmOverlay.classList.remove('open'));
-      
       favFilterBtn.addEventListener('click', () => {
         showFavoritesOnly = !showFavoritesOnly;
         favFilterBtn.classList.toggle('active', showFavoritesOnly);
@@ -2839,9 +2921,186 @@
         renderGallery();
       });
 
+      // --- DUPLICATE FINDER LOGIC ---
+
+      function exitDuplicateView() {
+        activeDuplicateGroups = null;
+        activeDuplicateMode = null;
+        findUrlDupsBtn.classList.remove('active');
+        findVisualDupsBtn.classList.remove('active');
+        findVisualDupsBtn.textContent = '👁️ Visual Duplicates';
+        findVisualDupsBtn.disabled = false;
+        selectedIds.clear();
+        updateSelectionState();
+        renderGallery();
+        showNotification('Exited duplicates view.');
+      }
+
+      function normalizeUrl(url) {
+        try {
+          const u = new URL(url);
+          ['utm_source', 'utm_medium', 'utm_campaign', 'token', 'expires'].forEach(p => u.searchParams.delete(p));
+          return (u.origin + u.pathname).toLowerCase();
+        } catch (e) {
+          return url.trim().toLowerCase();
+        }
+      }
+
+      findUrlDupsBtn.addEventListener('click', () => {
+        if (activeDuplicateMode === 'url') {
+          exitDuplicateView();
+          return;
+        }
+
+        const groupsMap = new Map();
+
+        allImages.forEach(img => {
+          const key = normalizeUrl(img.url);
+          if (!groupsMap.has(key)) {
+            groupsMap.set(key, []);
+          }
+          groupsMap.get(key).push(img);
+        });
+
+        const duplicateClusters = Array.from(groupsMap.values()).filter(group => group.length > 1);
+
+        if (duplicateClusters.length === 0) {
+          showNotification('No duplicate URLs detected.');
+          return;
+        }
+
+        activeDuplicateMode = 'url';
+        activeDuplicateGroups = duplicateClusters;
+        findUrlDupsBtn.classList.add('active');
+        findVisualDupsBtn.classList.remove('active');
+        findVisualDupsBtn.textContent = '👁️ Visual Duplicates';
+        selectedIds.clear();
+
+        duplicateClusters.forEach(group => {
+          for (let i = 1; i < group.length; i++) {
+            selectedIds.add(group[i].id);
+          }
+        });
+
+        updateSelectionState();
+        renderGallery();
+        showNotification(`Found ${duplicateClusters.length} duplicate sets. Click button again to exit.`);
+      });
+
+      async function computeDHash(url) {
+        const blob = await fetchImageBlob(url);
+        const imgBitmap = await createImageBitmap(blob);
+        const canvas = document.createElement('canvas');
+        canvas.width = 9;
+        canvas.height = 8;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgBitmap, 0, 0, 9, 8);
+
+        const data = ctx.getImageData(0, 0, 9, 8).data;
+        let hash = BigInt(0);
+
+        for (let r = 0; r < 8; r++) {
+          for (let c = 0; c < 8; c++) {
+            const i1 = (r * 9 + c) * 4;
+            const i2 = (r * 9 + (c + 1)) * 4;
+            const l1 = 0.299 * data[i1] + 0.587 * data[i1 + 1] + 0.114 * data[i1 + 2];
+            const l2 = 0.299 * data[i2] + 0.587 * data[i2 + 1] + 0.114 * data[i2 + 2];
+            if (l1 > l2) hash |= (BigInt(1) << BigInt(r * 8 + c));
+          }
+        }
+        return hash;
+      }
+
+      function getHammingDistance(h1, h2) {
+        let diff = h1 ^ h2;
+        let count = 0;
+        while (diff > 0n) {
+          count += Number(diff & 1n);
+          diff >>= 1n;
+        }
+        return count;
+      }
+
+      findVisualDupsBtn.addEventListener('click', async () => {
+        if (activeDuplicateMode === 'visual') {
+          exitDuplicateView();
+          return;
+        }
+
+        const candidates = allImages;
+
+        if (candidates.length > 250) {
+          const ok = confirm(`Analyzing ${candidates.length} images visually may take 15-30s. Continue?`);
+          if (!ok) return;
+        }
+
+        // Immediately update visual state and button text
+        findVisualDupsBtn.classList.add('active');
+        findUrlDupsBtn.classList.remove('active');
+        findVisualDupsBtn.textContent = '👁️ Scanning...';
+        findVisualDupsBtn.disabled = true;
+
+        // Yield to browser rendering before heavy compute starts
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        showNotification(`Scanning visual hashes (${candidates.length} images)...`, false, 8000);
+        const hashes = [];
+
+        for (let i = 0; i < candidates.length; i++) {
+          try {
+            const h = await computeDHash(candidates[i].url);
+            hashes.push({ item: candidates[i], hash: h });
+          } catch (e) { }
+        }
+
+        const clusters = [];
+        const assigned = new Set();
+
+        for (let i = 0; i < hashes.length; i++) {
+          if (assigned.has(i)) continue;
+          const cluster = [hashes[i].item];
+
+          for (let j = i + 1; j < hashes.length; j++) {
+            if (assigned.has(j)) continue;
+            if (getHammingDistance(hashes[i].hash, hashes[j].hash) <= 4) {
+              cluster.push(hashes[j].item);
+              assigned.add(j);
+            }
+          }
+
+          if (cluster.length > 1) {
+            assigned.add(i);
+            clusters.push(cluster);
+          }
+        }
+
+        findVisualDupsBtn.disabled = false;
+        findVisualDupsBtn.textContent = '👁️ Visual Duplicates';
+
+        if (clusters.length === 0) {
+          findVisualDupsBtn.classList.remove('active');
+          showNotification('No visual duplicates found.');
+          return;
+        }
+
+        activeDuplicateMode = 'visual';
+        activeDuplicateGroups = clusters;
+        selectedIds.clear();
+
+        clusters.forEach(cluster => {
+          for (let i = 1; i < cluster.length; i++) {
+            selectedIds.add(cluster[i].id);
+          }
+        });
+
+        updateSelectionState();
+        renderGallery();
+        showNotification(`Found ${clusters.length} visual duplicate sets. Click button again to exit.`);
+      });
+
       exportJsonBtn.addEventListener('click', () => {
         const exportData = allImages.map(img => {
-          const docId = img.id && img.id.includes('/') ? img.id.split('/').pop() : img.id;
+          const docId = getDocId(img);
           return {
             docId: docId,
             url: img.url,
@@ -2911,11 +3170,17 @@
             const restoredItems = [];
             for (const item of action.items) {
               const isFav = favorites.has(item.url);
+              // Preserve original timestamp instead of creating a new one
+              const originalDateIso = (item.timestamp && !isNaN(item.timestamp))
+                ? new Date(item.timestamp).toISOString()
+                : new Date().toISOString();
+
               const firestorePayload = {
                 fields: {
                   str: { stringValue: item.url },
-                  date: { timestampValue: new Date().toISOString() },
+                  date: { timestampValue: originalDateIso },
                   favorite: { booleanValue: isFav },
+                  status: { stringValue: item.status || 'unfiltered' },
                   tags: { arrayValue: { values: (item.tags || [DEFAULT_TAG]).filter(Boolean).map(t => ({ stringValue: t })) } }
                 }
               };
@@ -2931,7 +3196,8 @@
                 const restored = { 
                   ...item, 
                   id: data.name,
-                  timestamp: item.timestamp || Date.now()
+                  docId: data.name.split('/').pop(),
+                  timestamp: item.timestamp ?? Date.now()
                 };
                 restoredItems.push(restored);
                 allImages.push(restored);
@@ -2954,9 +3220,10 @@
             renderGallery();
 
             const currentDoc = allImages.find(img => img.url === action.url) || action.item;
-            if (currentDoc && currentDoc.id) {
+            const docId = getDocId(currentDoc);
+            if (docId) {
               try {
-                fetch(`https://firestore.googleapis.com/v1/${currentDoc.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
+                fetch(`${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ fields: { favorite: { booleanValue: action.previousState } } })
@@ -2975,17 +3242,25 @@
 
           if (action.type === 'delete') {
             showNotification('Redoing delete...');
-            const urlsToRemove = new Set(action.items.map(i => i.url));
+            const idsToRemove = new Set(action.items.map(i => i.id));
             
-            allImages = allImages.filter(img => !urlsToRemove.has(img.url));
-            urlsToRemove.forEach(url => favorites.delete(url));
-            selectedUrls.clear();
+            allImages = allImages.filter(img => !idsToRemove.has(img.id));
+            
+            action.items.forEach(deletedItem => {
+              const stillExists = allImages.some(img => img.url === deletedItem.url);
+              if (!stillExists) {
+                favorites.delete(deletedItem.url);
+              }
+            });
+
+            selectedIds.clear();
             updateHistoryButtons();
             renderGallery();
 
             for (const item of action.items) {
-              if (item.id) {
-                fetch(`https://firestore.googleapis.com/v1/${item.id}?key=${API_KEY}`, { method: 'DELETE' });
+              const docId = getDocId(item);
+              if (docId) {
+                fetch(`${FIRESTORE_BASE}/${docId}?key=${API_KEY}`, { method: 'DELETE' });
               }
             }
           } else if (action.type === 'favorite') {
@@ -2997,13 +3272,16 @@
             updateHistoryButtons();
             renderGallery();
 
-            try {
-              fetch(`https://firestore.googleapis.com/v1/${action.item.id}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fields: { favorite: { booleanValue: action.newState } } })
-              });
-            } catch (e) {}
+            const docId = getDocId(action.item);
+            if (docId) {
+              try {
+                fetch(`${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fields: { favorite: { booleanValue: action.newState } } })
+                });
+              } catch (e) {}
+            }
           }
         });
       }
@@ -3422,14 +3700,8 @@
         e.stopPropagation();
         const visible = getVisibleImages();
         if (visible.length && currentModalIndex >= 0) {
-          const targetUrl = visible[currentModalIndex].url;
-          closeModal(); 
-          selectedUrls.clear();
-          selectedUrls.add(targetUrl);
-          updateSelectionState();
-          
-          confirmTitle.textContent = 'Delete Image?';
-          confirmOverlay.classList.add('open');
+          const targetId = visible[currentModalIndex].id;
+          promptDelete([targetId], 'Delete Image?');
         }
       });
 
@@ -3440,6 +3712,14 @@
 
         const wasOpen = imageModal.classList.contains('open');
         imageModal.classList.remove('open');
+
+        // Scroll the main content to match the last viewed modal image
+        if (currentModalIndex >= 0) {
+          const targetCard = gridContainer.querySelector(`.masonry-item[data-index="${currentModalIndex}"]`);
+          if (targetCard) {
+            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
 
         if (!fromPopState && wasOpen && history.state && history.state.modalOpen) {
           history.back();
@@ -3563,6 +3843,8 @@
       }
 
       galleryTitleBtn.addEventListener('click', () => {
+        exitDuplicateView();
+
         staticTop.classList.remove('header-hidden', 'header-scrolled', 'is-sticky'); 
         headerRevealBtn.classList.remove('visible');
 
@@ -3570,6 +3852,7 @@
           top: 0,
           behavior: 'auto'
         });
+        renderGallery();
       });
 
       window.addEventListener('popstate', () => {
