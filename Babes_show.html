@@ -3713,12 +3713,27 @@
         const wasOpen = imageModal.classList.contains('open');
         imageModal.classList.remove('open');
 
-        // Scroll the main content to match the last viewed modal image
         if (currentModalIndex >= 0) {
-          const targetCard = gridContainer.querySelector(`.masonry-item[data-index="${currentModalIndex}"]`);
-          if (targetCard) {
-            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
+          const targetIdx = currentModalIndex;
+          
+          // Defer scroll to next tick so mobile UI & address bar layout settle
+          setTimeout(() => {
+            const targetCard = gridContainer.querySelector(`.masonry-item[data-index="${targetIdx}"]`);
+            if (targetCard) {
+              // Calculate offset directly within mainContent for bulletproof mobile behavior
+              const cardRect = targetCard.getBoundingClientRect();
+              const containerRect = mainContent.getBoundingClientRect();
+              const offset = (cardRect.top - containerRect.top) + mainContent.scrollTop - (containerRect.height / 2) + (cardRect.height / 2);
+
+              // Update tracking to avoid header hiding jitter
+              lastScrollY = Math.max(0, offset);
+
+              mainContent.scrollTo({
+                top: Math.max(0, offset),
+                behavior: 'smooth'
+              });
+            }
+          }, 50);
         }
 
         if (!fromPopState && wasOpen && history.state && history.state.modalOpen) {
