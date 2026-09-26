@@ -1530,7 +1530,10 @@
     <div class="overlay-modal" id="infoOverlayModal">
       <div class="overlay-modal-card">
         <div class="overlay-header">
-          <h3 class="overlay-title">Details & Tags</h3>
+          <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+            <h3 class="overlay-title">Details & Tags</h3>
+            <span id="infoOverlayTimestamp" style="font-size: 14px; color: var(--text-muted); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;"></span>
+          </div>
           <button class="overlay-close-btn" id="closeInfoOverlayBtn">&times;</button>
         </div>
 
@@ -1543,10 +1546,18 @@
         </div>
 
         <div style="display: flex; align-items: center; gap: 14px;">
-          <span class="tags-section-title" style="margin: 0; min-width: 65px;">URL</span>
+          <span class="tags-section-title" style="margin: 0; min-width: 65px;">IMG URL</span>
           <div class="overlay-copy-row" style="flex: 1;">
             <input type="text" id="infoOverlayUrl" class="input-control" readonly placeholder="Image URL" />
             <button class="btn btn-accent" id="infoOverlayCopyBtn">Copy</button>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <span class="tags-section-title" style="margin: 0; min-width: 65px;">PG URL</span>
+          <div class="overlay-copy-row" style="flex: 1;">
+            <input type="text" id="infoOverlaySourceUrl" class="input-control" readonly placeholder="Source / Page URL" />
+            <button class="btn btn-accent" id="infoOverlaySourceCopyBtn">Copy</button>
           </div>
         </div>
 
@@ -1766,6 +1777,9 @@
       const infoOverlayStatusBtn = document.getElementById('infoOverlayStatusBtn');
       const infoOverlayDocId = document.getElementById('infoOverlayDocId');
       const infoOverlayDocCopyBtn = document.getElementById('infoOverlayDocCopyBtn');
+      const infoOverlaySourceUrl = document.getElementById('infoOverlaySourceUrl');
+      const infoOverlaySourceCopyBtn = document.getElementById('infoOverlaySourceCopyBtn');
+      const infoOverlayTimestamp = document.getElementById('infoOverlayTimestamp');
 
       const slideshowToggleBtn = document.getElementById('slideshowToggleBtn');
       const slideshowIcon = document.getElementById('slideshowIcon');
@@ -2186,9 +2200,10 @@
             const matchDocId = docId.includes(query);
             const matchName = item.name && item.name.toLowerCase().includes(query);
             const matchUrl = item.url && item.url.toLowerCase().includes(query);
+            const matchSourceUrl = item.sourceUrl && item.sourceUrl.toLowerCase().includes(query);
             const matchTag = item.tags && item.tags.some(t => t.toLowerCase().includes(query));
 
-            return matchDocId || matchName || matchUrl || matchTag;
+            return matchDocId || matchName || matchUrl || matchSourceUrl || matchTag;
           })
           .sort((a, b) => {
             if (sortSelect.value === 'random') {
@@ -2278,8 +2293,20 @@
 
         const docId = getDocId(currentOverlayItem);
 
+        // Format Firestore timestamp to IST
+        if (infoOverlayTimestamp) {
+          if (currentOverlayItem.timestamp && !isNaN(currentOverlayItem.timestamp)) {
+            const dateObj = new Date(currentOverlayItem.timestamp);
+            const istDateStr = dateObj.toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+            infoOverlayTimestamp.textContent = `• ${istDateStr} IST`;
+          } else {
+            infoOverlayTimestamp.textContent = '';
+          }
+        }
+
         infoOverlayDocId.value = docId;
         infoOverlayUrl.value = currentOverlayItem.url;
+        infoOverlaySourceUrl.value = currentOverlayItem.sourceUrl || '';
         infoOverlayTagsContainer.innerHTML = '';
 
         updateOverlayStatusBtn();
@@ -2394,10 +2421,23 @@
         }
       });
 
+      infoOverlayDocId.addEventListener('click', () => {
+        infoOverlayDocId.select();
+      });
+
       infoOverlayDocCopyBtn.addEventListener('click', () => {
         if (infoOverlayDocId.value) {
           navigator.clipboard.writeText(infoOverlayDocId.value).catch(() => {});
           showNotification('Document ID Copied!', true);
+        }
+      });
+
+      infoOverlaySourceCopyBtn.addEventListener('click', () => {
+        if (infoOverlaySourceUrl.value) {
+          navigator.clipboard.writeText(infoOverlaySourceUrl.value).catch(() => {});
+          showNotification('Page URL Copied!', true);
+        } else {
+          showNotification('No Page URL available', false);
         }
       });
 
@@ -2422,7 +2462,6 @@
 
         itemsToDelete.forEach(item => selectedIds.delete(item.id));
 
-        // 1. Trigger cloud deletion FIRST so it always executes
         const deletePromises = itemsToDelete.map(item => {
           const docId = getDocId(item);
           if (docId) {
@@ -2435,7 +2474,6 @@
 
         showNotification(`Removed ${itemsToDelete.length} item(s)...`);
 
-        // 2. Handle duplicate group cleanup
         if (activeDuplicateGroups) {
           activeDuplicateGroups = activeDuplicateGroups
             .map(group => group.filter(img => allImages.some(a => a.id === img.id)))
@@ -3034,13 +3072,11 @@
           if (!ok) return;
         }
 
-        // Immediately update visual state and button text
         findVisualDupsBtn.classList.add('active');
         findUrlDupsBtn.classList.remove('active');
         findVisualDupsBtn.textContent = '👁️ Scanning...';
         findVisualDupsBtn.disabled = true;
 
-        // Yield to browser rendering before heavy compute starts
         await new Promise(resolve => setTimeout(resolve, 50));
 
         showNotification(`Scanning visual hashes (${candidates.length} images)...`, false, 8000);
@@ -3098,24 +3134,39 @@
         showNotification(`Found ${clusters.length} visual duplicate sets. Click button again to exit.`);
       });
 
+      // Updated to export PG URL (sourceUrl) and human-readable IST timestamp
       exportJsonBtn.addEventListener('click', () => {
         const exportData = allImages.map(img => {
           const docId = getDocId(img);
+          
+          let readableDate = null;
+          if (img.timestamp && !isNaN(img.timestamp)) {
+            const dateObj = new Date(img.timestamp);
+            // Format to IST in YYYY-MM-DD HH:mm:ss format
+            const istDateStr = dateObj.toLocaleString('sv-SE', { 
+              timeZone: 'Asia/Kolkata' 
+            });
+            readableDate = `${istDateStr} IST`;
+          }
+
           return {
             docId: docId,
             url: img.url,
+            sourceUrl: img.sourceUrl || '',
             status: img.status || 'unfiltered',
             favorite: favorites.has(img.url),
+            timestamp: readableDate,
             tags: img.tags || []
           };
         });
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         triggerSafeFileDownload(blob, `gallery_backup_${Date.now()}.json`);
-        showNotification('Backup exported.');
+        showNotification('Backup exported (IST).');
       });
 
       importJsonBtn.addEventListener('click', () => importFileInput.click());
       
+      // Normal mode: Updates matching documents with provided changes, creates new if missing
       importFileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -3126,30 +3177,69 @@
             if (!Array.isArray(data)) throw new Error("Format invalid");
             showNotification(`Syncing ${data.length} files...`, false, 4000);
             
+            // Map existing loaded images to check for matches by docId or url
+            const existingById = new Map(allImages.map(img => [getDocId(img), img]));
+            const existingByUrl = new Map(allImages.map(img => [img.url, img]));
+
             for (const item of data) {
-              const url = item.url || item;
+              const url = item.url || (typeof item === 'string' ? item : '');
               if (typeof url !== 'string' || !url.startsWith('http')) continue;
-              
+
+              // Find target docId
+              const targetDocId = item.docId || 
+                                 (existingByUrl.has(url) ? getDocId(existingByUrl.get(url)) : null);
+
               const isFav = item.favorite === true;
-              const firestorePayload = {
-                fields: {
-                  str: { stringValue: url },
-                  date: { timestampValue: new Date().toISOString() },
-                  favorite: { booleanValue: isFav },
-                  tags: { arrayValue: { values: DEFAULT_TAG ? [{ stringValue: DEFAULT_TAG }] : [] } }
-                }
+              const sourceUrl = item.sourceUrl || item.pgUrl || '';
+              const status = item.status || 'unfiltered';
+
+              const itemTags = Array.isArray(item.tags) ? item.tags : [];
+              if (DEFAULT_TAG && !itemTags.includes(DEFAULT_TAG)) {
+                itemTags.unshift(DEFAULT_TAG);
+              }
+
+              // Preserve existing timestamp if available
+              const existingItem = (targetDocId && existingById.get(targetDocId)) || existingByUrl.get(url);
+              let itemDate = item.timestamp || item.date;
+              if (!itemDate && existingItem && existingItem.timestamp) {
+                itemDate = existingItem.timestamp;
+              }
+              const parsedDate = itemDate ? new Date(itemDate) : null;
+              const finalDateIso = (parsedDate && !isNaN(parsedDate.getTime())) 
+                ? parsedDate.toISOString() 
+                : new Date().toISOString();
+
+              const fieldsPayload = {
+                str: { stringValue: url },
+                sourceUrl: { stringValue: sourceUrl },
+                status: { stringValue: status },
+                date: { timestampValue: finalDateIso },
+                favorite: { booleanValue: isFav },
+                tags: { arrayValue: { values: itemTags.map(t => ({ stringValue: t })) } }
               };
 
-              await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(firestorePayload)
-              });
+              if (targetDocId) {
+                // Updates the exact document ID without modifying other unspecified metadata
+                const patchUrl = `${FIRESTORE_BASE}/${targetDocId}?updateMask.fieldPaths=str&updateMask.fieldPaths=sourceUrl&updateMask.fieldPaths=status&updateMask.fieldPaths=date&updateMask.fieldPaths=favorite&updateMask.fieldPaths=tags&key=${API_KEY}`;
+                await fetch(patchUrl, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fields: fieldsPayload })
+                });
+              } else {
+                // Only creates a new entry if no record matched
+                await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fields: fieldsPayload })
+                });
+              }
             }
             
             showNotification('Sync complete!');
             setTimeout(() => window.location.reload(), 1000);
           } catch (err) {
+            console.error(err);
             showNotification('Could not parse JSON archive.');
           }
         };
@@ -3170,7 +3260,6 @@
             const restoredItems = [];
             for (const item of action.items) {
               const isFav = favorites.has(item.url);
-              // Preserve original timestamp instead of creating a new one
               const originalDateIso = (item.timestamp && !isNaN(item.timestamp))
                 ? new Date(item.timestamp).toISOString()
                 : new Date().toISOString();
@@ -3178,6 +3267,7 @@
               const firestorePayload = {
                 fields: {
                   str: { stringValue: item.url },
+                  sourceUrl: { stringValue: item.sourceUrl || '' },
                   date: { timestampValue: originalDateIso },
                   favorite: { booleanValue: isFav },
                   status: { stringValue: item.status || 'unfiltered' },
@@ -3719,7 +3809,6 @@
           setTimeout(() => {
             const targetCard = gridContainer.querySelector(`.masonry-item[data-index="${targetIdx}"]`);
             if (targetCard) {
-              // Prevent header scroll listeners from triggering during instant repositioning
               ignoreScrollEvents = true;
 
               const cardRect = targetCard.getBoundingClientRect();
@@ -3733,7 +3822,6 @@
 
               lastScrollY = offset;
 
-              // Re-enable scroll listener after layout paints
               requestAnimationFrame(() => {
                 ignoreScrollEvents = false;
               });
@@ -3827,6 +3915,7 @@
             allImages = docs.map((doc, index) => {
               const fields = doc.fields || {};
               const url = fields.str ? fields.str.stringValue : '';
+              const sourceUrl = fields.sourceUrl ? fields.sourceUrl.stringValue : '';
               const status = fields.status ? fields.status.stringValue.toLowerCase() : 'unfiltered';
               const favorite = fields.favorite ? fields.favorite.booleanValue : false;
               let tags = fields.tags?.arrayValue?.values?.map(v => v.stringValue) || [];
@@ -3846,6 +3935,7 @@
                 id: doc.name, 
                 docId: docId,
                 url: url,
+                sourceUrl: sourceUrl,
                 status: status,
                 name: sanitizeFilename(url), 
                 originalIndex: index,
