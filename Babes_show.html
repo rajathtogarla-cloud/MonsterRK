@@ -1131,6 +1131,9 @@
         justify-content: center;
         transition: all 0.25s var(--transition-easing);
         user-select: none;
+        -webkit-user-select: none;          /* Prevents native mobile selection */
+        -webkit-touch-callout: none;        /* Blocks iOS magnifier / context menu */
+        touch-action: manipulation;         /* Prevents gestures from interfering */
       }
 
       .modal-control-btn-icon:hover {
@@ -3769,35 +3772,47 @@
         }
       }
 
-      // Touch Devices (Phones/Tablets)
+      // 1. Touch start (Mobile)
       slideshowToggleBtn.addEventListener('touchstart', (e) => {
         isLongPressTriggered = false;
+        clearTimeout(longPressTimer);
+
         longPressTimer = setTimeout(() => {
           isLongPressTriggered = true;
           toggleSubOptions();
-        }, 500);
-      }, { passive: true });
+          // Optional light haptic feedback if supported on the device
+          if (navigator.vibrate) navigator.vibrate(40);
+        }, 450); // 450ms hold time
+      }, { passive: false });
 
+      // 2. Touch end (Mobile)
       slideshowToggleBtn.addEventListener('touchend', (e) => {
         clearTimeout(longPressTimer);
         if (isLongPressTriggered) {
+          // Suppress synthetic click/tap event after a long press
           e.preventDefault();
           e.stopPropagation();
         }
       });
 
+      // 3. Touch cancel/move
       slideshowToggleBtn.addEventListener('touchmove', () => {
         clearTimeout(longPressTimer);
       });
 
-      // Desktop Mouse: Press and hold > 500ms
+      slideshowToggleBtn.addEventListener('touchcancel', () => {
+        clearTimeout(longPressTimer);
+      });
+
+      // 4. Desktop Mouse Support
       slideshowToggleBtn.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
+        if (e.button !== 0) return; // Left click only
         isLongPressTriggered = false;
+        clearTimeout(longPressTimer);
         longPressTimer = setTimeout(() => {
           isLongPressTriggered = true;
           toggleSubOptions();
-        }, 500);
+        }, 450);
       });
 
       slideshowToggleBtn.addEventListener('mouseup', () => {
@@ -3808,14 +3823,13 @@
         clearTimeout(longPressTimer);
       });
 
-      // Desktop Right-Click shortcut
+      // 5. Block native mobile context menu from canceling long press
       slideshowToggleBtn.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggleSubOptions();
       });
 
-      // Regular Click: Triggers Play / Pause only when it was NOT a long-press
+      // 6. Click Handler (Trigger Play/Pause ONLY on quick tap)
       slideshowToggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (isLongPressTriggered) {
