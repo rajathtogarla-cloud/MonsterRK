@@ -1367,6 +1367,79 @@
         background: var(--control-hover);
         transform: scale(1.08);
       }
+
+      /* Slideshow Total Countdown Badge */
+      .slideshow-timer-badge {
+        position: absolute;
+        top: 78px;
+        left: 32px;
+        width: 150px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.75);
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+        border-radius: 19px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+        z-index: 1120;
+        user-select: none;
+        pointer-events: auto;
+        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
+      }
+
+      .slideshow-timer-badge.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-10px);
+      }
+
+      .slideshow-timer-pill-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+      }
+
+      .timer-pill-bg {
+        stroke: rgba(255, 255, 255, 0.16);
+      }
+
+      .timer-pill-progress {
+        stroke: #a855f7;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.1s linear;
+      }
+
+      .slideshow-timer-info {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.15;
+      }
+
+      .slideshow-timer-text {
+        font-size: 13px;
+        font-weight: 700;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ffffff;
+        letter-spacing: 0.5px;
+      }
+
+      .slideshow-timer-sub {
+        font-size: 9px;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
     </style>
 </head>
 <body>
@@ -1599,6 +1672,19 @@
         </select>
       </div>
 
+      <!-- Slideshow Total Countdown Indicator -->
+      <div class="slideshow-timer-badge" id="slideshowTimerBadge">
+        <svg class="slideshow-timer-pill-svg" viewBox="0 0 150 38">
+          <!-- Path starts top-center (x=75, y=1.5) above ':' and moves counter-clockwise (Right to Left) -->
+          <path class="timer-pill-bg" d="M 75,1.5 H 18.5 A 17.5,17.5 0 0 0 1.5,19 A 17.5,17.5 0 0 0 18.5,36.5 H 131.5 A 17.5,17.5 0 0 0 148.5,19 A 17.5,17.5 0 0 0 131.5,1.5 Z" fill="none" stroke-width="2" />
+          <path class="timer-pill-progress" id="slideshowRingProgress" d="M 75,1.5 H 18.5 A 17.5,17.5 0 0 0 1.5,19 A 17.5,17.5 0 0 0 18.5,36.5 H 131.5 A 17.5,17.5 0 0 0 148.5,19 A 17.5,17.5 0 0 0 131.5,1.5 Z" fill="none" stroke-width="2" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" />
+        </svg>
+        <div class="slideshow-timer-info">
+          <span class="slideshow-timer-text" id="slideshowTimerText">00:00</span>
+          <span class="slideshow-timer-sub" id="slideshowTimerSub">0 IMAGES TOTAL</span>
+        </div>
+      </div>
+
       <button class="modal-close-btn" id="modalClose" title="Close Lightbox">&times;</button>
       <button class="modal-nav-btn modal-nav-prev" id="modalPrevBtn" title="Previous">‹</button>
       
@@ -1819,6 +1905,134 @@
       let slideshowTimer = null;
       let isSlideshowPlaying = false;
       let isTransitioning = false;
+
+      const slideshowTimerBadge = document.getElementById('slideshowTimerBadge');
+      const slideshowTimerText = document.getElementById('slideshowTimerText');
+      const slideshowTimerSub = document.getElementById('slideshowTimerSub');
+      const slideshowRingProgress = document.getElementById('slideshowRingProgress');
+
+      let countdownInterval = null;
+      let totalSlideshowDurationMs = 0;
+      let remainingSlideshowMs = 0;
+      let isTimerInitialized = false;
+
+      function getSlideshowInterval() {
+        return parseInt(slideshowTimerSelect.value, 10) || 1000;
+      }
+
+      function formatTimerDisplay(ms) {
+        const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+
+        const mm = String(mins).padStart(2, '0');
+        const ss = String(secs).padStart(2, '0');
+
+        return hrs > 0 ? `${hrs}:${mm}:${ss}` : `${mm}:${ss}`;
+      }
+
+      let tripStartIndex = 0;
+
+      function updateRemainingSubtitle() {
+        const visible = getVisibleImages();
+        if (visible.length === 0) return;
+        
+        // Calculate pictures left in the current cycle starting from tripStartIndex back to tripStartIndex
+        let remainingCount = 0;
+        if (currentModalIndex >= tripStartIndex) {
+          remainingCount = visible.length - (currentModalIndex - tripStartIndex);
+        } else {
+          remainingCount = tripStartIndex - currentModalIndex;
+        }
+        
+        slideshowTimerSub.textContent = `${Math.max(1, remainingCount)} IMAGES REMAINING`;
+      }
+
+      function updatePrecalculatedTimer(forceReset = false) {
+        const visible = getVisibleImages();
+        const slideDuration = getSlideshowInterval();
+
+        if (!isTimerInitialized || forceReset) {
+          tripStartIndex = currentModalIndex >= 0 ? currentModalIndex : 0;
+          // Full round trip duration covering all images in the collection
+          totalSlideshowDurationMs = visible.length * slideDuration;
+          remainingSlideshowMs = totalSlideshowDurationMs;
+          isTimerInitialized = true;
+
+          slideshowTimerText.textContent = formatTimerDisplay(remainingSlideshowMs);
+          slideshowTimerSub.textContent = `${visible.length} IMAGES TOTAL`;
+          if (slideshowRingProgress) {
+            slideshowRingProgress.style.strokeDashoffset = '0';
+          }
+        } else {
+          slideshowTimerText.textContent = formatTimerDisplay(remainingSlideshowMs);
+        }
+      }
+
+      function startCountdownTicker() {
+        clearInterval(countdownInterval);
+
+        const stepMs = 100;
+        countdownInterval = setInterval(() => {
+          remainingSlideshowMs = Math.max(0, remainingSlideshowMs - stepMs);
+          slideshowTimerText.textContent = formatTimerDisplay(remainingSlideshowMs);
+
+          if (totalSlideshowDurationMs > 0 && slideshowRingProgress) {
+            // Retracts around perimeter from right to left (0 offset = full, 100 offset = nil)
+            const elapsedRatio = (totalSlideshowDurationMs - remainingSlideshowMs) / totalSlideshowDurationMs;
+            const offset = 100 * Math.min(1, Math.max(0, elapsedRatio));
+            slideshowRingProgress.style.strokeDashoffset = `${offset}`;
+          }
+
+          if (remainingSlideshowMs <= 0) {
+            // Completes a full trip loop
+            remainingSlideshowMs = totalSlideshowDurationMs;
+            tripStartIndex = currentModalIndex;
+          }
+        }, stepMs);
+      }
+
+      function startSlideshow() {
+        isSlideshowPlaying = true;
+        slideshowToggleBtn.classList.add('active');
+        slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+        clearInterval(slideshowTimer);
+
+        const interval = getSlideshowInterval();
+        const visible = getVisibleImages();
+
+        if (!isTimerInitialized || totalSlideshowDurationMs === 0) {
+          tripStartIndex = currentModalIndex >= 0 ? currentModalIndex : 0;
+          totalSlideshowDurationMs = visible.length * interval;
+          remainingSlideshowMs = totalSlideshowDurationMs;
+          isTimerInitialized = true;
+        }
+
+        updateRemainingSubtitle();
+        startCountdownTicker();
+
+        slideshowTimer = setInterval(() => {
+          showNextImage();
+          updateRemainingSubtitle();
+        }, interval);
+      }
+
+      function stopSlideshow() {
+        isSlideshowPlaying = false;
+        slideshowToggleBtn.classList.remove('active');
+        slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+        
+        // Pauses ticker and slide transitions without wiping remaining time
+        clearInterval(slideshowTimer);
+        stopCountdownTicker();
+        updateRemainingSubtitle();
+      }
+
+      function stopCountdownTicker() {
+        clearInterval(countdownInterval);
+      }
 
       function setTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
@@ -3440,6 +3654,9 @@
           history.pushState({ modalOpen: true }, '');
         }
         imageModal.classList.add('open');
+
+        slideshowTimerBadge.classList.remove('hidden');
+        updatePrecalculatedTimer(true); // Resets timer for the newly entered gallery session
       }
 
       function clearTransitionClasses() {
@@ -3514,25 +3731,6 @@
         transitionToImage(prevIdx, 'prev');
       }
 
-      function startSlideshow() {
-        isSlideshowPlaying = true;
-        slideshowToggleBtn.classList.add('active');
-        slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-
-        clearInterval(slideshowTimer);
-        const interval = Math.max(parseInt(slideshowTimerSelect.value, 10) || 3000, 1500);
-        slideshowTimer = setInterval(() => {
-          showNextImage();
-        }, interval);
-      }
-
-      function stopSlideshow() {
-        isSlideshowPlaying = false;
-        slideshowToggleBtn.classList.remove('active');
-        slideshowIcon.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
-        clearInterval(slideshowTimer);
-      }
-
       function toggleSlideshow() {
         if (isSlideshowPlaying) {
           stopSlideshow();
@@ -3547,6 +3745,7 @@
       });
 
       slideshowTimerSelect.addEventListener('change', () => {
+        updatePrecalculatedTimer(true);
         if (isSlideshowPlaying) {
           startSlideshow();
         }
@@ -3567,6 +3766,7 @@
 
         modalClose.classList.toggle('hidden');
         modalSlideshowBar.classList.toggle('hidden');
+        slideshowTimerBadge.classList.toggle('hidden');
         modalPrevBtn.classList.toggle('hidden');
         modalNextBtn.classList.toggle('hidden');
         modalBottomActions.classList.toggle('hidden');
@@ -3797,6 +3997,7 @@
 
       function closeModal(fromPopState = false) {
         stopSlideshow();
+        isTimerInitialized = false; // Resets timer state on exit
         resetZoom(false);
         clearTransitionClasses();
 
