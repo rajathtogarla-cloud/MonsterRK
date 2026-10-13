@@ -1938,13 +1938,9 @@
         const visible = getVisibleImages();
         if (visible.length === 0) return;
         
-        // Calculate pictures left in the current cycle starting from tripStartIndex back to tripStartIndex
-        let remainingCount = 0;
-        if (currentModalIndex >= tripStartIndex) {
-          remainingCount = visible.length - (currentModalIndex - tripStartIndex);
-        } else {
-          remainingCount = tripStartIndex - currentModalIndex;
-        }
+        // Clean circular remainder from tripStartIndex back to tripStartIndex
+        const elapsedInTrip = (currentModalIndex - tripStartIndex + visible.length) % visible.length;
+        const remainingCount = visible.length - elapsedInTrip;
         
         slideshowTimerSub.textContent = `${Math.max(1, remainingCount)} IMAGES REMAINING`;
       }
@@ -1955,7 +1951,7 @@
 
         if (!isTimerInitialized || forceReset) {
           tripStartIndex = currentModalIndex >= 0 ? currentModalIndex : 0;
-          // Full round trip duration covering all images in the collection
+          // Full round-trip duration covering all images in the collection
           totalSlideshowDurationMs = visible.length * slideDuration;
           remainingSlideshowMs = totalSlideshowDurationMs;
           isTimerInitialized = true;
@@ -1986,7 +1982,7 @@
           }
 
           if (remainingSlideshowMs <= 0) {
-            // Completes a full trip loop
+            // Trip completes: reset to full trip loop from the current image
             remainingSlideshowMs = totalSlideshowDurationMs;
             tripStartIndex = currentModalIndex;
           }
