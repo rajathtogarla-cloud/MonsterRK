@@ -207,11 +207,33 @@
           display: none !important;
         }
 
-        /* 1-column layout for mobile */
+        /* Fix 1: Eliminate horizontal page expansion from header margins */
+        .main-content {
+          padding: 0 12px 28px 12px !important;
+          overflow-x: hidden !important;
+        }
+
+        .static-top {
+          margin-left: -12px !important;
+          margin-right: -12px !important;
+          padding: 16px 12px 14px 12px !important;
+        }
+
+        /* Fix 2: Force clean single vertical list without multi-column spill */
         .masonry-grid {
-          column-count: 1 !important;
-          display: block;
-          width: 100%;
+          display: flex !important;
+          flex-direction: column !important;
+          column-count: unset !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow: hidden !important;
+        }
+
+        .masonry-item {
+          width: 100% !important;
+          max-width: 100% !important;
+          display: block !important;
+          margin-bottom: 16px !important;
         }
 
         /* Overlay modal adjustments */
