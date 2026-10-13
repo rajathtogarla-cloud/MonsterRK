@@ -1079,18 +1079,39 @@
       }
 
       .modal-slideshow-bar {
-        position: static;
+        position: relative;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 8px;
-        height: 46px;
         background: rgba(15, 23, 42, 0.65);
         -webkit-backdrop-filter: blur(16px);
         backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.16);
-        padding: 0 10px;
+        padding: 6px;
         border-radius: 40px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+        transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* Collapsed sub-options that expand downwards */
+      .slideshow-collapsible-options {
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+        animation: fadeIn 0.2s ease forwards;
+      }
+
+      .slideshow-collapsible-options.open {
+        display: flex;
+      }
+
+      .slideshow-collapsible-options .modal-select {
+        width: 100%;
+        min-width: 72px;
+        height: 32px;
+        text-align: center;
+        padding: 0 16px 0 8px;
       }
 
       .modal-control-btn-icon {
@@ -1650,26 +1671,29 @@
       <!-- Group containing the toolbar and timer badge side-by-side -->
       <div class="modal-top-left-group" id="modalTopLeftGroup">
         <div class="modal-slideshow-bar" id="modalSlideshowBar">
-          <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Toggle Auto Slideshow">
+          <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Click to Play/Pause • Long-Press for Options">
             <span id="slideshowIcon" style="display: flex; align-items: center; justify-content: center; fill: currentColor; width: 14px; height: 14px;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             </span>
           </button>
 
-          <select id="slideshowTimerSelect" class="modal-select" title="Set Slide Duration">
-            <option value="1000">1s</option>
-            <option value="2000">2s</option>
-            <option value="3000" selected>3s</option>
-            <option value="5000">5s</option>
-            <option value="10000">10s</option>
-          </select>
+          <!-- Collapsible options expanding vertically downwards -->
+          <div class="slideshow-collapsible-options" id="slideshowCollapsibleOptions">
+            <select id="slideshowTimerSelect" class="modal-select" title="Set Slide Duration">
+              <option value="1000" selected>1s</option>
+              <option value="2000">2s</option>
+              <option value="3000">3s</option>
+              <option value="5000">5s</option>
+              <option value="10000">10s</option>
+            </select>
 
-          <select id="slideshowAnimSelect" class="modal-select" title="Set Transition Effect">
-            <option value="slide">Slide</option>
-            <option value="fade">Fade</option>
-            <option value="zoom">Zoom</option>
-            <option value="none" selected>None</option>
-          </select>
+            <select id="slideshowAnimSelect" class="modal-select" title="Set Transition Effect">
+              <option value="slide">Slide</option>
+              <option value="fade">Fade</option>
+              <option value="zoom">Zoom</option>
+              <option value="none" selected>None</option>
+            </select>
+          </div>
         </div>
 
         <!-- Slideshow Total Countdown Indicator -->
@@ -1847,6 +1871,7 @@
       const modalClose = document.getElementById('modalClose');
       const modalSlideshowBar = document.getElementById('modalSlideshowBar');
       const modalTopLeftGroup = document.getElementById('modalTopLeftGroup');
+      const slideshowCollapsibleOptions = document.getElementById('slideshowCollapsibleOptions');
       const modalPrevBtn = document.getElementById('modalPrevBtn');
       const modalNextBtn = document.getElementById('modalNextBtn');
       
@@ -3735,8 +3760,68 @@
         }
       }
 
+      let longPressTimer = null;
+      let isLongPressTriggered = false;
+
+      function toggleSubOptions() {
+        if (slideshowCollapsibleOptions) {
+          slideshowCollapsibleOptions.classList.toggle('open');
+        }
+      }
+
+      // Touch Devices (Phones/Tablets)
+      slideshowToggleBtn.addEventListener('touchstart', (e) => {
+        isLongPressTriggered = false;
+        longPressTimer = setTimeout(() => {
+          isLongPressTriggered = true;
+          toggleSubOptions();
+        }, 500);
+      }, { passive: true });
+
+      slideshowToggleBtn.addEventListener('touchend', (e) => {
+        clearTimeout(longPressTimer);
+        if (isLongPressTriggered) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+
+      slideshowToggleBtn.addEventListener('touchmove', () => {
+        clearTimeout(longPressTimer);
+      });
+
+      // Desktop Mouse: Press and hold > 500ms
+      slideshowToggleBtn.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isLongPressTriggered = false;
+        longPressTimer = setTimeout(() => {
+          isLongPressTriggered = true;
+          toggleSubOptions();
+        }, 500);
+      });
+
+      slideshowToggleBtn.addEventListener('mouseup', () => {
+        clearTimeout(longPressTimer);
+      });
+
+      slideshowToggleBtn.addEventListener('mouseleave', () => {
+        clearTimeout(longPressTimer);
+      });
+
+      // Desktop Right-Click shortcut
+      slideshowToggleBtn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSubOptions();
+      });
+
+      // Regular Click: Triggers Play / Pause only when it was NOT a long-press
       slideshowToggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (isLongPressTriggered) {
+          isLongPressTriggered = false;
+          return;
+        }
         toggleSlideshow();
       });
 
@@ -3992,6 +4077,7 @@
 
       function closeModal(fromPopState = false) {
         stopSlideshow();
+        slideshowCollapsibleOptions?.classList.remove('open');
         isTimerInitialized = false; // Resets timer state on exit
         resetZoom(false);
         clearTransitionClasses();
