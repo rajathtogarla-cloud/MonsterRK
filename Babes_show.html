@@ -1060,15 +1060,30 @@
         display: flex;
       }
 
-      .modal-slideshow-bar {
+      /* Container holding toolbar and timer badge side-by-side */
+      .modal-top-left-group {
         position: absolute;
         top: 24px;
         left: 32px;
         display: flex;
         align-items: center;
+        gap: 12px;
+        z-index: 1120;
+        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
+      }
+
+      .modal-top-left-group.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-10px);
+      }
+
+      .modal-slideshow-bar {
+        position: static;
+        display: flex;
+        align-items: center;
         gap: 8px;
         height: 46px;
-        z-index: 1120;
         background: rgba(15, 23, 42, 0.65);
         -webkit-backdrop-filter: blur(16px);
         backdrop-filter: blur(16px);
@@ -1076,13 +1091,6 @@
         padding: 0 10px;
         border-radius: 40px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
-      }
-
-      .modal-slideshow-bar.hidden {
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(-10px);
       }
 
       .modal-control-btn-icon {
@@ -1368,31 +1376,21 @@
         transform: scale(1.08);
       }
 
-      /* Slideshow Total Countdown Badge */
+      /* Slideshow Total Countdown Badge beside the toolbar */
       .slideshow-timer-badge {
-        position: absolute;
-        top: 78px;
-        left: 32px;
+        position: relative;
         width: 150px;
-        height: 38px;
+        height: 46px;
         display: flex;
         align-items: center;
         justify-content: center;
         background: rgba(15, 23, 42, 0.75);
         -webkit-backdrop-filter: blur(16px);
         backdrop-filter: blur(16px);
-        border-radius: 19px;
+        border-radius: 23px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-        z-index: 1120;
         user-select: none;
         pointer-events: auto;
-        transition: opacity 0.25s ease, transform var(--transition-speed) var(--transition-easing);
-      }
-
-      .slideshow-timer-badge.hidden {
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(-10px);
       }
 
       .slideshow-timer-pill-svg {
@@ -1649,39 +1647,41 @@
 
     <!-- Lightbox Modal -->
     <div class="modal" id="imageModal">
-      <div class="modal-slideshow-bar" id="modalSlideshowBar">
-        <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Toggle Auto Slideshow">
-          <span id="slideshowIcon" style="display: flex; align-items: center; justify-content: center; fill: currentColor; width: 14px; height: 14px;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          </span>
-        </button>
+      <!-- Group containing the toolbar and timer badge side-by-side -->
+      <div class="modal-top-left-group" id="modalTopLeftGroup">
+        <div class="modal-slideshow-bar" id="modalSlideshowBar">
+          <button id="slideshowToggleBtn" class="modal-control-btn-icon" title="Toggle Auto Slideshow">
+            <span id="slideshowIcon" style="display: flex; align-items: center; justify-content: center; fill: currentColor; width: 14px; height: 14px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </span>
+          </button>
 
-        <select id="slideshowTimerSelect" class="modal-select" title="Set Slide Duration">
-          <option value="1000">1s</option>
-          <option value="2000">2s</option>
-          <option value="3000" selected>3s</option>
-          <option value="5000">5s</option>
-          <option value="10000">10s</option>
-        </select>
+          <select id="slideshowTimerSelect" class="modal-select" title="Set Slide Duration">
+            <option value="1000">1s</option>
+            <option value="2000">2s</option>
+            <option value="3000" selected>3s</option>
+            <option value="5000">5s</option>
+            <option value="10000">10s</option>
+          </select>
 
-        <select id="slideshowAnimSelect" class="modal-select" title="Set Transition Effect">
-          <option value="slide">Slide</option>
-          <option value="fade">Fade</option>
-          <option value="zoom">Zoom</option>
-          <option value="none" selected>None</option>
-        </select>
-      </div>
+          <select id="slideshowAnimSelect" class="modal-select" title="Set Transition Effect">
+            <option value="slide">Slide</option>
+            <option value="fade">Fade</option>
+            <option value="zoom">Zoom</option>
+            <option value="none" selected>None</option>
+          </select>
+        </div>
 
-      <!-- Slideshow Total Countdown Indicator -->
-      <div class="slideshow-timer-badge" id="slideshowTimerBadge">
-        <svg class="slideshow-timer-pill-svg" viewBox="0 0 150 38">
-          <!-- Path starts top-center (x=75, y=1.5) above ':' and moves counter-clockwise (Right to Left) -->
-          <path class="timer-pill-bg" d="M 75,1.5 H 18.5 A 17.5,17.5 0 0 0 1.5,19 A 17.5,17.5 0 0 0 18.5,36.5 H 131.5 A 17.5,17.5 0 0 0 148.5,19 A 17.5,17.5 0 0 0 131.5,1.5 Z" fill="none" stroke-width="2" />
-          <path class="timer-pill-progress" id="slideshowRingProgress" d="M 75,1.5 H 18.5 A 17.5,17.5 0 0 0 1.5,19 A 17.5,17.5 0 0 0 18.5,36.5 H 131.5 A 17.5,17.5 0 0 0 148.5,19 A 17.5,17.5 0 0 0 131.5,1.5 Z" fill="none" stroke-width="2" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" />
-        </svg>
-        <div class="slideshow-timer-info">
-          <span class="slideshow-timer-text" id="slideshowTimerText">00:00</span>
-          <span class="slideshow-timer-sub" id="slideshowTimerSub">0 IMAGES TOTAL</span>
+        <!-- Slideshow Total Countdown Indicator -->
+        <div class="slideshow-timer-badge" id="slideshowTimerBadge">
+          <svg class="slideshow-timer-pill-svg" viewBox="0 0 150 46">
+            <path class="timer-pill-bg" d="M 75,1.5 H 23 A 21.5,21.5 0 0 0 1.5,23 A 21.5,21.5 0 0 0 23,44.5 H 127 A 21.5,21.5 0 0 0 148.5,23 A 21.5,21.5 0 0 0 127,1.5 Z" fill="none" stroke-width="2" />
+            <path class="timer-pill-progress" id="slideshowRingProgress" d="M 75,1.5 H 23 A 21.5,21.5 0 0 0 1.5,23 A 21.5,21.5 0 0 0 23,44.5 H 127 A 21.5,21.5 0 0 0 148.5,23 A 21.5,21.5 0 0 0 127,1.5 Z" fill="none" stroke-width="2" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" />
+          </svg>
+          <div class="slideshow-timer-info">
+            <span class="slideshow-timer-text" id="slideshowTimerText">00:00</span>
+            <span class="slideshow-timer-sub" id="slideshowTimerSub">0 IMAGES TOTAL</span>
+          </div>
         </div>
       </div>
 
@@ -1846,6 +1846,7 @@
       const modalImg = document.getElementById('modalImg');
       const modalClose = document.getElementById('modalClose');
       const modalSlideshowBar = document.getElementById('modalSlideshowBar');
+      const modalTopLeftGroup = document.getElementById('modalTopLeftGroup');
       const modalPrevBtn = document.getElementById('modalPrevBtn');
       const modalNextBtn = document.getElementById('modalNextBtn');
       
@@ -3640,7 +3641,7 @@
         modalImg.className = 'modal-content';
         
         modalClose.classList.remove('hidden');
-        modalSlideshowBar.classList.remove('hidden');
+        modalTopLeftGroup.classList.remove('hidden');
         modalPrevBtn.classList.remove('hidden');
         modalNextBtn.classList.remove('hidden');
         modalBottomActions.classList.remove('hidden');
@@ -3651,8 +3652,7 @@
         }
         imageModal.classList.add('open');
 
-        slideshowTimerBadge.classList.remove('hidden');
-        updatePrecalculatedTimer(true); // Resets timer for the newly entered gallery session
+        updatePrecalculatedTimer(true);
       }
 
       function clearTransitionClasses() {
@@ -3761,8 +3761,7 @@
         }
 
         modalClose.classList.toggle('hidden');
-        modalSlideshowBar.classList.toggle('hidden');
-        slideshowTimerBadge.classList.toggle('hidden');
+        modalTopLeftGroup.classList.toggle('hidden');
         modalPrevBtn.classList.toggle('hidden');
         modalNextBtn.classList.toggle('hidden');
         modalBottomActions.classList.toggle('hidden');
