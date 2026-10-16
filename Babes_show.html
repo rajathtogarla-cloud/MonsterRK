@@ -735,6 +735,7 @@
         column-gap: 20px;
         max-width: 1440px;
         margin: 0 auto;
+        contain: paint layout; /* Isolates the grid paint tree */
       }
 
       @media (max-width: 1400px) { .masonry-grid { column-count: 3; } }
@@ -762,9 +763,11 @@
         overflow: hidden;
         border: 1px solid var(--card-border);
         box-shadow: var(--card-shadow);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         vertical-align: top;
+        transform: translateZ(0); /* Hardware accelerates card rendering */
+        will-change: transform;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
       .masonry-item:hover {
@@ -782,6 +785,7 @@
         display: block;
         min-height: 120px;
         background: var(--control-bg);
+        decoding: async; /* Prevents image decoding from blocking scroll */
       }
 
       body.attach-mode .masonry-item.eligible {
