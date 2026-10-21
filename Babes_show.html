@@ -223,17 +223,23 @@
         .masonry-grid {
           display: flex !important;
           flex-direction: column !important;
-          column-count: unset !important;
           width: 100% !important;
           max-width: 100% !important;
-          overflow: hidden !important;
+          gap: 16px !important;
+        }
+
+        .masonry-col {
+          display: flex !important;
+          flex-direction: column !important;
+          width: 100% !important;
+          gap: 16px !important;
         }
 
         .masonry-item {
           width: 100% !important;
           max-width: 100% !important;
           display: block !important;
-          margin-bottom: 16px !important;
+          margin-bottom: 0 !important;
         }
 
         /* Overlay modal adjustments */
@@ -731,33 +737,26 @@
       }
 
       .masonry-grid {
-        column-count: 4;
-        column-gap: 20px;
+        display: flex;
+        gap: 20px;
         max-width: 1440px;
         margin: 0 auto;
-        contain: paint layout; /* Isolates the grid paint tree */
+        align-items: flex-start;
       }
 
-      @media (max-width: 1400px) { .masonry-grid { column-count: 3; } }
-      @media (max-width: 1024px) { .masonry-grid { column-count: 2; } }
-
-      /* Ensure single column on all mobile screens up to 768px */
-      @media (max-width: 768px) {
-        .masonry-grid {
-          column-count: 1 !important;
-          display: block;
-          width: 100%;
-        }
+      .masonry-col {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        flex: 1;
+        min-width: 0;
       }
 
       .masonry-item {
         position: relative;
-        display: inline-block;
+        display: block;
         width: 100%;
-        break-inside: avoid;
-        -webkit-column-break-inside: avoid;
-        page-break-inside: avoid;
-        margin-bottom: 20px;
+        margin-bottom: 0;
         background: var(--card-bg);
         border-radius: 16px;
         overflow: hidden;
@@ -765,7 +764,7 @@
         box-shadow: var(--card-shadow);
         cursor: pointer;
         vertical-align: top;
-        transform: translateZ(0); /* Hardware accelerates card rendering */
+        transform: translateZ(0);
         will-change: transform;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
@@ -2388,6 +2387,8 @@
         render();
       });
 
+      let currentColCount = getMasonryColCount();
+
       window.addEventListener('resize', () => {
         if (window.innerWidth <= 768 && currentMode === 'attach') {
           currentMode = 'filter';
@@ -2401,6 +2402,14 @@
           selectedAttachTags.clear();
           selectedAttachIds.clear();
           render();
+          return;
+        }
+
+        // Re-distribute cards only if the column count breakpoint changed
+        const newColCount = getMasonryColCount();
+        if (newColCount !== currentColCount) {
+          currentColCount = newColCount;
+          renderGallery();
         }
       });
 
@@ -2823,21 +2832,38 @@
         pendingDeletionIds = [];
       });
 
+      function getMasonryColCount() {
+        const width = window.innerWidth;
+        if (width <= 768) return 1;
+        if (width <= 1024) return 2;
+        if (width <= 1400) return 3;
+        return 4;
+      }
+
       function renderGallery() {
         gridContainer.innerHTML = '';
         const visibleItems = getVisibleImages();
         statsLabel.textContent = `${allImages.length} Image${allImages.length === 1 ? '' : 's'} Stored`;
+
+        if (visibleItems.length === 0) {
+          gridContainer.innerHTML = '<div style="text-align: center; width: 100%; color: var(--text-muted); padding: 50px; font-weight: 500;">No images match your query.</div>';
+          return;
+        }
+
+        // Initialize column track containers based on current viewport
+        const colCount = getMasonryColCount();
+        const columns = Array.from({ length: colCount }, () => {
+          const col = document.createElement('div');
+          col.className = 'masonry-col';
+          gridContainer.appendChild(col);
+          return col;
+        });
 
         if (currentMode === 'filter') {
           standardToolbarRow.style.display = 'flex';
           selectionToolbarRow.style.display = 'flex';
           attachBanner.classList.remove('visible');
           updateSelectionState();
-
-          if (visibleItems.length === 0) {
-            gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1 / -1; color: var(--text-muted); padding: 50px; font-weight: 500;">No images match your query.</div>';
-            return;
-          }
 
           visibleItems.forEach((item, index) => {
             const isSelected = selectedIds.has(item.id);
@@ -2978,7 +3004,9 @@
 
             card.appendChild(img);
             card.appendChild(overlay);
-            gridContainer.appendChild(card);
+
+            // Round-robin distribution across columns
+            columns[index % colCount].appendChild(card);
           });
         } else {
           standardToolbarRow.style.display = 'none';
@@ -2996,7 +3024,7 @@
             bannerInstruction.textContent = `Attaching [${chosenTagsArr.join(', ')}]. Click unattached images below:`;
           }
 
-          visibleItems.forEach((item) => {
+          visibleItems.forEach((item, index) => {
             const isEligible = chosenTagsArr.length > 0 && !chosenTagsArr.every(t => (item.tags || []).includes(t));
             if (isEligible) eligibleCount++;
 
@@ -3048,7 +3076,9 @@
 
             card.appendChild(img);
             card.appendChild(overlay);
-            gridContainer.appendChild(card);
+
+            // Round-robin distribution across columns
+            columns[index % colCount].appendChild(card);
           });
 
           applyAttachBtn.disabled = selectedAttachIds.size === 0 || chosenTagsArr.length === 0;
