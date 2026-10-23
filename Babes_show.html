@@ -763,7 +763,6 @@
         border: 1px solid var(--card-border);
         box-shadow: var(--card-shadow);
         cursor: pointer;
-        vertical-align: top;
         transform: translateZ(0);
         will-change: transform;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -784,7 +783,6 @@
         display: block;
         min-height: 120px;
         background: var(--control-bg);
-        decoding: async; /* Prevents image decoding from blocking scroll */
       }
 
       body.attach-mode .masonry-item.eligible {
@@ -1821,6 +1819,15 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
       import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+      // --- ADD FIRESTORE IMPORTS ---
+      import { 
+        initializeFirestore, 
+        persistentLocalCache, 
+        persistentMultipleTabManager,
+        collection, 
+        onSnapshot 
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
       const PROJECT_ID = "monster-rk";
       const API_KEY = "AIzaSyDNXuf7O3nepPVyM43TgAXxnkGw5gpKd3s";
       const COLLECTION_NAME = "images";
@@ -1837,6 +1844,11 @@
 
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
+      const db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
 
       const authWrapper = document.getElementById("auth-wrapper");
       const emailInput = document.getElementById("email");
@@ -1853,15 +1865,20 @@
 
       onAuthStateChanged(auth, async (user) => {
         if (user) {
-            authWrapper.classList.add("hidden");
-            layoutElements.forEach(el => el && el.classList.remove("hidden"));
-            initializeGalleryData();
+          authWrapper.classList.add("hidden");
+          layoutElements.forEach(el => el && el.classList.remove("hidden"));
+          setupRealtimeGallery(); // <-- Updated call
         } else {
-            authWrapper.classList.remove("hidden");
-            layoutElements.forEach(el => el && el.classList.add("hidden"));
-            emailInput.value = '';
-            passwordInput.value = '';
-            errorMessage.textContent = '';
+          if (unsubscribeSnapshot) {
+            unsubscribeSnapshot();
+            unsubscribeSnapshot = null;
+          }
+          allImages = [];
+          authWrapper.classList.remove("hidden");
+          layoutElements.forEach(el => el && el.classList.add("hidden"));
+          emailInput.value = '';
+          passwordInput.value = '';
+          errorMessage.textContent = '';
         }
       });
 
@@ -2000,6 +2017,9 @@
       let actionHistory = [];
       let currentHistoryIndex = -1;
       let currentModalIndex = -1;
+      let currentModalDocId = null;
+      const locallyDeletedIds = new Set();
+      let unsubscribeSnapshot = null;
 
       let slideshowTimer = null;
       let isSlideshowPlaying = false;
@@ -2765,6 +2785,12 @@
         const itemsToDelete = allImages.filter(img => idSet.has(img.id));
         if (itemsToDelete.length === 0) return;
 
+        // Track locally deleted IDs to prevent snapshot bounce
+        itemsToDelete.forEach(item => {
+          locallyDeletedIds.add(item.id);
+          locallyDeletedIds.add(item.docId);
+        });
+
         pushToHistory({
           type: 'delete',
           items: [...itemsToDelete]
@@ -2841,6 +2867,7 @@
       }
 
       function renderGallery() {
+        const savedScroll = mainContent.scrollTop;
         gridContainer.innerHTML = '';
         const visibleItems = getVisibleImages();
         statsLabel.textContent = `${allImages.length} Image${allImages.length === 1 ? '' : 's'} Stored`;
@@ -2875,6 +2902,7 @@
             img.referrerPolicy = 'no-referrer';
             img.src = item.url;
             img.loading = 'lazy';
+            img.decoding = 'async'; // Enables background thread image decoding
             img.alt = item.name || 'Gallery photo';
 
             const overlay = document.createElement('div');
@@ -3037,6 +3065,7 @@
             img.referrerPolicy = 'no-referrer';
             img.src = item.url;
             img.loading = 'lazy';
+            img.decoding = 'async'; // Enables background thread image decoding
             img.alt = item.name || 'Gallery photo';
 
             const overlay = document.createElement('div');
@@ -3084,6 +3113,13 @@
           applyAttachBtn.disabled = selectedAttachIds.size === 0 || chosenTagsArr.length === 0;
           applyAttachBtn.textContent = `Attach [${chosenTagsArr.length} Tag(s)] to ${selectedAttachIds.size} Image(s)`;
         }
+
+        // 2. Restore scroll seamlessly
+        ignoreScrollEvents = true;
+        mainContent.scrollTop = savedScroll;
+        requestAnimationFrame(() => {
+          ignoreScrollEvents = false;
+        });
       }
 
       selectAllEligibleBtn.addEventListener('click', () => {
@@ -3577,7 +3613,6 @@
             }
             
             showNotification('Sync complete!');
-            setTimeout(() => window.location.reload(), 1000);
           } catch (err) {
             console.error(err);
             showNotification('Could not parse JSON archive.');
@@ -3766,6 +3801,7 @@
         
         resetZoom(false);
         currentModalIndex = (index + visible.length) % visible.length;
+        currentModalDocId = visible[currentModalIndex].docId;
         modalImg.src = visible[currentModalIndex].url;
         modalImg.className = 'modal-content';
         
@@ -3797,6 +3833,7 @@
         if (animType === 'none') {
           resetZoom(false);
           currentModalIndex = nextIndex;
+          currentModalDocId = visible[currentModalIndex].docId;
           modalImg.src = visible[currentModalIndex].url;
           updateModalFavUI();
           return;
@@ -4192,6 +4229,7 @@
 
       function closeModal(fromPopState = false) {
         stopSlideshow();
+        currentModalDocId = null;
         slideshowCollapsibleOptions?.classList.remove('open');
         isTimerInitialized = false; // Resets timer state on exit
         resetZoom(false);
@@ -4266,87 +4304,98 @@
         }
       });
 
-      async function fetchAllFirestoreDocuments() {
-        let docs = [];
-        let pageToken = '';
-        let hasMore = true;
 
-        loadingMessage.textContent = '✨ Loading your visual gallery...';
+      function setupRealtimeGallery() {
+        const imagesCol = collection(db, COLLECTION_NAME);
+        loadingMessage.textContent = '✨ Connecting to live gallery stream...';
 
-        while (hasMore) {
-          let url = `${FIRESTORE_BASE}?pageSize=${FIRESTORE_PAGE_SIZE}&key=${API_KEY}`;
-          if (pageToken) {
-            url += `&pageToken=${encodeURIComponent(pageToken)}`;
-          }
-
-          const res = await fetch(url, { cache: 'no-store' });
-          if (!res.ok) {
-            throw new Error(`Firestore request failed: ${res.status}`);
-          }
-
-          const data = await res.json();
-          if (data.documents && data.documents.length > 0) {
-            docs.push(...data.documents);
-            loadingMessage.textContent = `✨ Loaded ${docs.length} images...`;
-          }
-
-          if (data.nextPageToken) {
-            pageToken = data.nextPageToken;
-          } else {
-            hasMore = false;
-          }
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
         }
 
-        return docs;
-      }
+        unsubscribeSnapshot = onSnapshot(imagesCol, (snapshot) => {
+          loadingMessage.style.display = 'none';
 
-      function initializeGalleryData() {
-        fetchAllFirestoreDocuments()
-          .then(docs => {
-            loadingMessage.style.display = 'none';
-            if (docs.length === 0) {
-              gridContainer.innerHTML = '<div style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
-              return;
+          snapshot.docChanges().forEach((change) => {
+            const doc = change.doc;
+            const data = doc.data();
+            const docId = doc.id;
+            const fullId = `projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}/${docId}`;
+
+            let timestamp = Date.now();
+            if (data.date) {
+              if (typeof data.date.toDate === 'function') {
+                timestamp = data.date.toDate().getTime();
+              } else if (typeof data.date === 'string' || typeof data.date === 'number') {
+                const parsed = new Date(data.date).getTime();
+                if (!isNaN(parsed)) timestamp = parsed;
+              }
             }
 
-            allImages = docs.map((doc, index) => {
-              const fields = doc.fields || {};
-              const url = fields.str ? fields.str.stringValue : '';
-              const sourceUrl = fields.sourceUrl ? fields.sourceUrl.stringValue : '';
-              const status = fields.status ? fields.status.stringValue.toLowerCase() : 'unfiltered';
-              const favorite = fields.favorite ? fields.favorite.booleanValue : false;
-              let tags = fields.tags?.arrayValue?.values?.map(v => v.stringValue) || [];
+            const itemData = {
+              id: fullId,
+              docId: docId,
+              url: data.str || '',
+              sourceUrl: data.sourceUrl || '',
+              status: (data.status || 'unfiltered').toLowerCase(),
+              name: sanitizeFilename(data.str || ''),
+              timestamp: timestamp,
+              tags: Array.isArray(data.tags) ? data.tags : []
+            };
 
-              if (DEFAULT_TAG && !tags.includes(DEFAULT_TAG)) {
-                tags.unshift(DEFAULT_TAG);
+            if (DEFAULT_TAG && !itemData.tags.includes(DEFAULT_TAG)) {
+              itemData.tags.unshift(DEFAULT_TAG);
+            }
+
+            if (change.type === 'added') {
+              const existingIdx = allImages.findIndex(img => img.docId === docId);
+              if (existingIdx === -1) {
+                allImages.push(itemData);
+                if (data.favorite) favorites.add(itemData.url);
+                itemData.tags.forEach(t => allTags.add(t));
               }
-
-              if (favorite) favorites.add(url);
-              tags.forEach(t => allTags.add(t));
-
-              const rawDate = fields.date?.timestampValue || doc.createTime;
-              const timestamp = rawDate ? new Date(rawDate).getTime() : index;
-              const docId = doc.name ? doc.name.split('/').pop() : '';
-
-              return {
-                id: doc.name, 
-                docId: docId,
-                url: url,
-                sourceUrl: sourceUrl,
-                status: status,
-                name: sanitizeFilename(url), 
-                originalIndex: index,
-                timestamp: isNaN(timestamp) ? index : timestamp,
-                tags: tags
-              };
-            });
-            updateTagDatalist();
-            render();
-          })
-          .catch(err => {
-            console.error(err);
-            loadingMessage.textContent = 'Could not fetch gallery items.';
+            } else if (change.type === 'modified') {
+              const idx = allImages.findIndex(img => img.docId === docId);
+              if (idx !== -1) {
+                allImages[idx] = { ...allImages[idx], ...itemData };
+                if (data.favorite) favorites.add(itemData.url);
+                else favorites.delete(itemData.url);
+                itemData.tags.forEach(t => allTags.add(t));
+              }
+            } else if (change.type === 'removed') {
+              if (locallyDeletedIds.has(fullId) || locallyDeletedIds.has(docId)) {
+                locallyDeletedIds.delete(fullId);
+                locallyDeletedIds.delete(docId);
+                return;
+              }
+              allImages = allImages.filter(img => img.docId !== docId);
+              selectedIds.delete(fullId);
+            }
           });
+
+          // Synchronize modal position if currently open
+          if (imageModal.classList.contains('open') && currentModalDocId) {
+            const visible = getVisibleImages();
+            const foundIdx = visible.findIndex(img => img.docId === currentModalDocId);
+            if (foundIdx !== -1) {
+              currentModalIndex = foundIdx;
+              updateRemainingSubtitle();
+            } else {
+              closeModal();
+              showNotification('The image being viewed was removed remotely.');
+            }
+          }
+
+          if (allImages.length === 0) {
+            gridContainer.innerHTML = '<div style="text-align: center; width: 100%; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
+          }
+
+          updateTagDatalist();
+          render();
+        }, (error) => {
+          console.error('Realtime listener error:', error);
+          loadingMessage.textContent = 'Could not sync real-time changes.';
+        });
       }
 
       galleryTitleBtn.addEventListener('click', () => {
