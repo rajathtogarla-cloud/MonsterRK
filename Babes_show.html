@@ -1452,10 +1452,11 @@
       .status-toggle-btn {
         background: var(--control-bg);
         border: 1px solid var(--card-border);
+        color: var(--text-color);
         border-radius: 10px;
         width: 38px;
         height: 38px;
-        font-size: 18px;
+        font-size: 19px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1464,8 +1465,8 @@
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
       }
       .status-toggle-btn:hover {
-        background: var(--control-hover);
-        transform: scale(1.08);
+        /* background: var(--control-hover); */
+        transform: translateY(-2px);
       }
 
       /* Slideshow Total Countdown Badge beside the toolbar */
@@ -1553,7 +1554,7 @@
           <div class="app-brand-logo">✦</div>
           <h1>Studio</h1>
         </div>
-        <button id="statusFilterBtn" class="status-toggle-btn" title="Cycle Status: All / Filtered / Unfiltered">❤️</button>
+        <button id="resyncCloudBtn" class="status-toggle-btn" title="Calibrate / Pull All Images from Cloud">⟳</button>
       </div>
       
       <div class="sidebar-group">
@@ -1642,9 +1643,9 @@
             <button id="menuToggleBtn" class="btn btn-icon" title="Toggle Navigation">☰</button>
             <h1 class="app-title" id="galleryTitleBtn" style="cursor: pointer; user-select: none;" title="Go to initial view">Gallery Collection</h1>
             <div style="display: flex; gap: 6px; margin-left: 8px;">
-              <button id="resyncCloudBtn" class="btn btn-icon" title="Calibrate / Pull All Images from Cloud">⟳</button>
               <button id="undoBtn" class="btn btn-icon" disabled title="Undo Action">↶</button>
               <button id="redoBtn" class="btn btn-icon" disabled title="Redo Action">↷</button>
+              <button id="statusFilterBtn" class="btn btn-icon" title="Cycle Status: All / Filtered / Unfiltered">🐦‍🔥</button>
             </div>
           </div>
         </header>
@@ -2835,7 +2836,7 @@
         const status = (currentOverlayItem.status || 'unfiltered').toLowerCase();
         
         if (status === 'filtered') {
-          infoOverlayStatusBtn.textContent = '👅 Filtered';
+          infoOverlayStatusBtn.textContent = '❤️‍🔥 Filtered';
         } else {
           infoOverlayStatusBtn.textContent = '💦 Unfiltered';
         }
@@ -3568,7 +3569,7 @@
       statusFilterBtn.addEventListener('click', () => {
         if (currentStatusFilter === 'all') {
           currentStatusFilter = 'filtered';
-          statusFilterBtn.textContent = '👅';
+          statusFilterBtn.textContent = '❤️‍🔥';
           statusFilterBtn.title = 'Showing Filtered Only (Click for Unfiltered)';
         } else if (currentStatusFilter === 'filtered') {
           currentStatusFilter = 'unfiltered';
@@ -3576,7 +3577,7 @@
           statusFilterBtn.title = 'Showing Unfiltered Only (Click for All)';
         } else {
           currentStatusFilter = 'all';
-          statusFilterBtn.textContent = '❤️';
+          statusFilterBtn.textContent = '🐦‍🔥';
           statusFilterBtn.title = 'Showing All Images (Click for Filtered)';
         }
         renderGallery();
