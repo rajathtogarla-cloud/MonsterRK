@@ -1645,7 +1645,7 @@
             <div style="display: flex; gap: 6px; margin-left: 8px;">
               <button id="undoBtn" class="btn btn-icon" disabled title="Undo Action">↶</button>
               <button id="redoBtn" class="btn btn-icon" disabled title="Redo Action">↷</button>
-              <button id="statusFilterBtn" class="btn btn-icon" title="Cycle Status: All / Filtered / Unfiltered">🐦‍🔥</button>
+              <button id="statusFilterBtn" class="btn btn-icon" title="Cycle Status: All / Filtered / Unfiltered">❤️</button>
             </div>
           </div>
         </header>
@@ -2836,7 +2836,7 @@
         const status = (currentOverlayItem.status || 'unfiltered').toLowerCase();
         
         if (status === 'filtered') {
-          infoOverlayStatusBtn.textContent = '❤️‍🔥 Filtered';
+          infoOverlayStatusBtn.textContent = '👅 Filtered';
         } else {
           infoOverlayStatusBtn.textContent = '💦 Unfiltered';
         }
@@ -3569,7 +3569,7 @@
       statusFilterBtn.addEventListener('click', () => {
         if (currentStatusFilter === 'all') {
           currentStatusFilter = 'filtered';
-          statusFilterBtn.textContent = '❤️‍🔥';
+          statusFilterBtn.textContent = '👅';
           statusFilterBtn.title = 'Showing Filtered Only (Click for Unfiltered)';
         } else if (currentStatusFilter === 'filtered') {
           currentStatusFilter = 'unfiltered';
@@ -3577,7 +3577,7 @@
           statusFilterBtn.title = 'Showing Unfiltered Only (Click for All)';
         } else {
           currentStatusFilter = 'all';
-          statusFilterBtn.textContent = '🐦‍🔥';
+          statusFilterBtn.textContent = '❤️';
           statusFilterBtn.title = 'Showing All Images (Click for Filtered)';
         }
         renderGallery();
