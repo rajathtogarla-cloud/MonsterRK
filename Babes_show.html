@@ -900,7 +900,7 @@
       }
 
       .action-btn.card-del-btn:hover {
-        background: #ef4444;
+        /* background: #ef4444; */
         color: white;
         border-color: #ef4444;
       }
@@ -1583,24 +1583,33 @@
 
       <div class="sidebar-group">
         <span class="sidebar-group-title">Statistics</span>
-        <span id="statsLabel" class="image-stats">0 Images Loaded</span>
+        <span id="statsLabel" class="image-stats">0 Images Active</span>
+        <button id="viewTrashBtn" class="btn" type="button" style="margin-top: 4px;">
+          🗑️ Trash (<span id="trashCountLabel">0</span>)
+        </button>
       </div>
 
       <!-- Tag Filtering & Tag Attachment Section -->
+      <!-- Collapsible Tag Section -->
       <div class="sidebar-group">
         <div class="sidebar-header-row">
-          <span class="sidebar-group-title" id="sectionTitle">Tags Filter</span>
+          <button id="tagsToggleCollapseBtn" type="button" style="background: none; border: none; padding: 0; font-family: inherit; font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 1px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <span id="tagsCollapseArrow" style="display: inline-block; transform: rotate(-90deg); transition: transform 0.2s ease;">▼</span>
+            <span id="sectionTitle">Tags Filter</span>
+          </button>
           <button id="modeToggleBtn" class="btn-mode-toggle" title="Switch between Filtering and Attaching tags">
             <span>Mode: Filter</span> ⚡
           </button>
         </div>
 
-        <div class="tag-add-container" id="tagAddRow">
-          <input type="text" id="newTagInput" class="input-control" placeholder="New tag name..." autocomplete="off" style="padding: 8px 12px; font-size: 13px;" />
-          <button id="addNewTagBtn" class="btn-small">+ Add</button>
-        </div>
+        <div id="tagsCollapsibleContent" style="display: none; flex-direction: column; gap: 12px; transition: all 0.25s ease;">
+          <div class="tag-add-container" id="tagAddRow">
+            <input type="text" id="newTagInput" class="input-control" placeholder="New tag name..." autocomplete="off" style="padding: 8px 12px; font-size: 13px;" />
+            <button id="addNewTagBtn" class="btn-small">+ Add</button>
+          </div>
 
-        <div id="sidebarTags" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+          <div id="sidebarTags" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
       </div>
 
       <div class="sidebar-group">
@@ -1617,6 +1626,9 @@
         <button id="importJsonBtn" class="btn">
           🗡️ Import JSON
         </button>
+        <button id="logoutBtn" class="btn" type="button" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.25);">
+          💔 Logout
+        </button>
         <input type="file" id="importFileInput" accept=".json" style="display: none;" />
       </div>
     </aside>
@@ -1630,9 +1642,9 @@
             <button id="menuToggleBtn" class="btn btn-icon" title="Toggle Navigation">☰</button>
             <h1 class="app-title" id="galleryTitleBtn" style="cursor: pointer; user-select: none;" title="Go to initial view">Gallery Collection</h1>
             <div style="display: flex; gap: 6px; margin-left: 8px;">
+              <button id="resyncCloudBtn" class="btn btn-icon" title="Calibrate / Pull All Images from Cloud">⟳</button>
               <button id="undoBtn" class="btn btn-icon" disabled title="Undo Action">↶</button>
               <button id="redoBtn" class="btn btn-icon" disabled title="Redo Action">↷</button>
-              <button id="logoutBtn" class="btn btn-icon" title="Logout" style="color: #ef4444;">💔</button>
             </div>
           </div>
         </header>
@@ -1664,6 +1676,9 @@
             <div class="action-group-selected" id="selectedActionsGroup">
               <button id="downloadSelectedBtn" class="btn btn-accent" title="Download chosen pictures">
                 📦 Download Zip
+              </button>
+              <button id="restoreSelectedBtn" class="btn" style="display: none; background: var(--attach-grad); color: #ffffff; border: none;" title="Restore chosen pictures to gallery">
+                ↶ Restore Selected
               </button>
               <button id="deleteSelectedBtn" class="btn btn-danger" title="Delete chosen pictures">
                 🗑️ Delete Selected
@@ -1819,12 +1834,20 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
       import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-      // --- ADD FIRESTORE IMPORTS ---
+      // --- FIRESTORE SDK IMPORTS ---
       import { 
         initializeFirestore, 
         persistentLocalCache, 
         persistentMultipleTabManager,
         collection, 
+        query,
+        where,
+        orderBy,
+        doc,
+        updateDoc,        // Enables native SDK soft-deletes and cache writes
+        deleteDoc,        // Enables permanent hard-purges
+        getDocs,          // Enables full cloud sync calibration
+        getDocsFromCache, // Enables zero-read local cache loads
         onSnapshot 
       } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -1993,6 +2016,20 @@
       const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
       const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
 
+      const tagsToggleCollapseBtn = document.getElementById('tagsToggleCollapseBtn');
+      const tagsCollapsibleContent = document.getElementById('tagsCollapsibleContent');
+      const tagsCollapseArrow = document.getElementById('tagsCollapseArrow');
+
+      if (tagsToggleCollapseBtn && tagsCollapsibleContent) {
+        tagsToggleCollapseBtn.addEventListener('click', () => {
+          const isCollapsed = tagsCollapsibleContent.style.display === 'none';
+          tagsCollapsibleContent.style.display = isCollapsed ? 'flex' : 'none';
+          if (tagsCollapseArrow) {
+            tagsCollapseArrow.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+          }
+        });
+      }
+
       const DEFAULT_TAG = null;
 
       let allImages = [];
@@ -2005,6 +2042,51 @@
       let ignoreScrollEvents = false;
       let randomOrderMap = new Map();
       let currentStatusFilter = 'all';
+
+      let currentView = 'active'; // 'active' | 'trash'
+      const viewTrashBtn = document.getElementById('viewTrashBtn');
+      const trashCountLabel = document.getElementById('trashCountLabel');
+      const restoreSelectedBtn = document.getElementById('restoreSelectedBtn');
+
+      function updateViewCounters() {
+        const activeCount = allImages.filter(img => !img.isDeleted).length;
+        const trashCount = allImages.filter(img => img.isDeleted).length;
+        
+        if (statsLabel) {
+          statsLabel.textContent = `${activeCount} Image${activeCount === 1 ? '' : 's'} Active`;
+        }
+        
+        // Dynamically query DOM to avoid referencing detached nodes
+        const dynamicTrashLabel = document.getElementById('trashCountLabel');
+        if (dynamicTrashLabel) {
+          dynamicTrashLabel.textContent = trashCount;
+        } else if (viewTrashBtn && currentView === 'active') {
+          viewTrashBtn.innerHTML = `🗑️ Trash (<span id="trashCountLabel">${trashCount}</span>)`;
+        }
+      }
+
+      // Single button toggles back and forth between Trash and Active
+      if (viewTrashBtn) {
+        viewTrashBtn.addEventListener('click', () => {
+          if (currentView === 'active') {
+            currentView = 'trash';
+            viewTrashBtn.classList.add('btn-toggle', 'active');
+            viewTrashBtn.innerHTML = `🖼️ View Active Gallery`;
+            if (restoreSelectedBtn) restoreSelectedBtn.style.display = 'inline-flex';
+            deleteSelectedBtn.textContent = '🔥 Purge Selected';
+          } else {
+            currentView = 'active';
+            viewTrashBtn.classList.remove('btn-toggle', 'active');
+            const trashCount = allImages.filter(img => img.isDeleted).length;
+            viewTrashBtn.innerHTML = `🗑️ Trash (<span id="trashCountLabel">${trashCount}</span>)`;
+            if (restoreSelectedBtn) restoreSelectedBtn.style.display = 'none';
+            deleteSelectedBtn.textContent = '🗑️ Delete Selected';
+          }
+          selectedIds.clear();
+          updateSelectionState();
+          renderGallery();
+        });
+      }
       
       let allTags = new Set();
       let activeTagFilters = new Set();
@@ -2520,12 +2602,16 @@
 
         return allImages
           .filter(item => {
+            // View separation: Active view hides soft-deleted items; Trash view shows only soft-deleted items
+            if (currentView === 'active' && item.isDeleted) return false;
+            if (currentView === 'trash' && !item.isDeleted) return false;
+
             if (currentStatusFilter !== 'all') {
               const itemStatus = (item.status || 'unfiltered').toLowerCase();
               if (itemStatus !== currentStatusFilter) return false;
             }
 
-            if (showFavoritesOnly && !favorites.has(item.url)) return false;
+            if (currentView === 'active' && showFavoritesOnly && !favorites.has(item.url)) return false;
             
             if (currentMode === 'filter' && activeTagFilters.size > 0) {
               const itemTags = item.tags || [];
@@ -2551,10 +2637,148 @@
               return randomOrderMap.get(a.id) - randomOrderMap.get(b.id);
             }
 
+            // Always sorts by original creation timestamp: original chronology is preserved
             const timeA = a.timestamp ?? a.originalIndex ?? 0;
             const timeB = b.timestamp ?? b.originalIndex ?? 0;
             return sortSelect.value === 'newest' ? timeB - timeA : timeA - timeB;
           });
+      }
+
+      // Soft Delete: Writes native Date object (Timestamp) to both Firestore & IndexedDB
+      async function softDeleteImage(item, recordHistory = true) {
+        item.isDeleted = true;
+        item.updatedAt = Date.now();
+        renderGallery();
+        updateViewCounters();
+
+        if (recordHistory) {
+          pushToHistory({
+            type: 'softDelete',
+            items: [item]
+          });
+        }
+
+        const docId = getDocId(item);
+        if (!docId) return;
+
+        try {
+          const docRef = doc(db, COLLECTION_NAME, docId);
+          await updateDoc(docRef, {
+            isDeleted: true,
+            updatedAt: new Date()
+          });
+          showNotification('Moved to Trash 🗑️');
+        } catch (err) {
+          console.error("Soft delete failed:", err);
+          showNotification('Could not update cloud status.', true);
+        }
+      }
+
+      // Restore: Writes native Date object (Timestamp) to both Firestore & IndexedDB
+      async function restoreFromTrash(item, recordHistory = true) {
+        item.isDeleted = false;
+        item.updatedAt = Date.now();
+        renderGallery();
+        updateViewCounters();
+
+        if (recordHistory) {
+          pushToHistory({
+            type: 'restore',
+            items: [item]
+          });
+        }
+
+        const docId = getDocId(item);
+        if (!docId) return;
+
+        try {
+          const docRef = doc(db, COLLECTION_NAME, docId);
+          await updateDoc(docRef, {
+            isDeleted: false,
+            updatedAt: new Date()
+          });
+          showNotification('Restored to Gallery ↶');
+        } catch (err) {
+          console.error("Restore failed:", err);
+          showNotification('Could not update cloud status.', true);
+        }
+      }
+
+      // Hard Delete: Physically purges document from BOTH Firestore and IndexedDB cache
+      async function executeHardDelete(idsToDelete) {
+        const idSet = new Set(idsToDelete);
+        const itemsToDelete = allImages.filter(img => idSet.has(img.id));
+        if (itemsToDelete.length === 0) return;
+
+        allImages = allImages.filter(img => !idSet.has(img.id));
+        itemsToDelete.forEach(item => selectedIds.delete(item.id));
+        renderGallery();
+        updateViewCounters();
+
+        for (const item of itemsToDelete) {
+          const docId = getDocId(item);
+          if (docId) {
+            try {
+              // deleteDoc purges IndexedDB cache locally and deletes document in cloud
+              await deleteDoc(doc(db, COLLECTION_NAME, docId));
+            } catch (err) {
+              console.error("Hard delete error:", docId, err);
+            }
+          }
+        }
+        showNotification(`Permanently erased ${itemsToDelete.length} item(s).`);
+      }
+
+      if (restoreSelectedBtn) {
+        restoreSelectedBtn.addEventListener('click', async () => {
+          const count = selectedIds.size;
+          if (count === 0) return;
+
+          const itemsToRestore = allImages.filter(img => selectedIds.has(img.id) && img.isDeleted);
+          if (itemsToRestore.length === 0) return;
+
+          selectedIds.clear();
+
+          // Push batch to history as a single undoable step
+          pushToHistory({
+            type: 'restore',
+            items: [...itemsToRestore]
+          });
+
+          itemsToRestore.forEach(item => {
+            item.isDeleted = false;
+            item.updatedAt = Date.now();
+          });
+
+          currentView = 'active';
+          if (viewTrashBtn) {
+            viewTrashBtn.classList.remove('btn-toggle', 'active');
+            const trashCount = allImages.filter(img => img.isDeleted).length;
+            viewTrashBtn.innerHTML = `🗑️ Trash (<span id="trashCountLabel">${trashCount}</span>)`;
+          }
+          restoreSelectedBtn.style.display = 'none';
+          if (deleteSelectedBtn) {
+            deleteSelectedBtn.textContent = '🗑️ Delete Selected';
+          }
+
+          updateSelectionState();
+          updateViewCounters();
+          renderGallery();
+
+          showNotification(`Restored ${itemsToRestore.length} item(s) to Gallery ↶`);
+
+          const promises = itemsToRestore.map(async (item) => {
+            const docId = getDocId(item);
+            if (!docId) return;
+            const docRef = doc(db, COLLECTION_NAME, docId);
+            return updateDoc(docRef, {
+              isDeleted: false,
+              updatedAt: new Date()
+            });
+          });
+
+          await Promise.allSettled(promises);
+        });
       }
 
       function getDocId(itemOrId) {
@@ -2566,13 +2790,15 @@
       async function updateFirestoreTags(item) {
         try {
           const docId = getDocId(item);
-          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=tags&key=${API_KEY}`;
+          const nowIso = new Date().toISOString();
+          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=tags&updateMask.fieldPaths=updatedAt&key=${API_KEY}`;
           await fetch(patchUrl, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               fields: { 
-                tags: { arrayValue: { values: (item.tags || []).map(t => ({ stringValue: t })) } } 
+                tags: { arrayValue: { values: (item.tags || []).map(t => ({ stringValue: t })) } },
+                updatedAt: { timestampValue: nowIso }
               } 
             })
           });
@@ -2584,13 +2810,15 @@
       async function updateFirestoreStatus(item) {
         try {
           const docId = getDocId(item);
-          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=status&key=${API_KEY}`;
+          const nowIso = new Date().toISOString();
+          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=status&updateMask.fieldPaths=updatedAt&key=${API_KEY}`;
           await fetch(patchUrl, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               fields: {
-                status: { stringValue: item.status }
+                status: { stringValue: item.status },
+                updatedAt: { timestampValue: nowIso }
               }
             })
           });
@@ -2870,7 +3098,7 @@
         const savedScroll = mainContent.scrollTop;
         gridContainer.innerHTML = '';
         const visibleItems = getVisibleImages();
-        statsLabel.textContent = `${allImages.length} Image${allImages.length === 1 ? '' : 's'} Stored`;
+        updateViewCounters();
 
         if (visibleItems.length === 0) {
           gridContainer.innerHTML = '<div style="text-align: center; width: 100%; color: var(--text-muted); padding: 50px; font-weight: 500;">No images match your query.</div>';
@@ -2962,26 +3190,50 @@
             bottomRow.className = 'overlay-bottom';
             bottomRow.style.gap = '8px';
 
-            const dlBtn = document.createElement('button');
-            dlBtn.className = 'action-btn';
-            dlBtn.title = 'Download';
-            dlBtn.innerHTML = '↓';
-            dlBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              downloadSingleImage(item.url, item.name);
-            });
+            if (currentView === 'active') {
+              const dlBtn = document.createElement('button');
+              dlBtn.className = 'action-btn';
+              dlBtn.title = 'Download';
+              dlBtn.innerHTML = '↓';
+              dlBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadSingleImage(item.url, item.name);
+              });
 
-            const cardDelBtn = document.createElement('button');
-            cardDelBtn.className = 'action-btn card-del-btn';
-            cardDelBtn.title = 'Delete Image';
-            cardDelBtn.innerHTML = '🗑️';
-            cardDelBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              promptDelete([item.id], 'Delete Image?');
-            });
+              const cardDelBtn = document.createElement('button');
+              cardDelBtn.className = 'action-btn card-del-btn';
+              cardDelBtn.title = 'Move to Trash';
+              cardDelBtn.innerHTML = '🗑️';
+              cardDelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                softDeleteImage(item);
+              });
 
-            bottomRow.appendChild(dlBtn);
-            bottomRow.appendChild(cardDelBtn);
+              bottomRow.appendChild(dlBtn);
+              bottomRow.appendChild(cardDelBtn);
+            } else {
+              // Trash Bin Card Actions: Restore & Permanent Purge
+              const restoreBtn = document.createElement('button');
+              restoreBtn.className = 'action-btn';
+              restoreBtn.title = 'Restore to Gallery';
+              restoreBtn.innerHTML = '↶';
+              restoreBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                restoreFromTrash(item);
+              });
+
+              const hardDelBtn = document.createElement('button');
+              hardDelBtn.className = 'action-btn card-del-btn';
+              hardDelBtn.title = 'Permanently Delete';
+              hardDelBtn.innerHTML = '🔥';
+              hardDelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                executeHardDelete([item.id]);
+              });
+
+              bottomRow.appendChild(restoreBtn);
+              bottomRow.appendChild(hardDelBtn);
+            }
             overlay.appendChild(topRow);
             overlay.appendChild(bottomRow);
 
@@ -3274,21 +3526,37 @@
 
         renderGallery();
 
-        try {
-          const docId = getDocId(item);
-          const patchUrl = `${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=favorite&key=${API_KEY}`;
-          fetch(patchUrl, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields: { favorite: { booleanValue: newFavStatus } } })
-          });
-        } catch (error) { }
+        const docId = getDocId(item);
+        if (docId) {
+          const docRef = doc(db, COLLECTION_NAME, docId);
+          updateDoc(docRef, {
+            favorite: newFavStatus,
+            updatedAt: new Date()
+          }).catch(err => console.error("Favorite sync error:", err));
+        }
       }
 
-      deleteSelectedBtn.addEventListener('click', () => {
+      deleteSelectedBtn.addEventListener('click', async () => {
         const count = selectedIds.size;
         if (count === 0) return;
-        promptDelete(Array.from(selectedIds), `Delete ${count} Image${count > 1 ? 's' : ''}?`);
+
+        if (currentView === 'active') {
+          const itemsToSoftDelete = allImages.filter(img => selectedIds.has(img.id));
+          selectedIds.clear();
+          updateSelectionState();
+
+          // Push batch to history as a single undoable step
+          pushToHistory({
+            type: 'softDelete',
+            items: [...itemsToSoftDelete]
+          });
+          
+          await Promise.allSettled(itemsToSoftDelete.map(img => softDeleteImage(img, false)));
+        } else {
+          if (confirm(`Permanently erase ${count} item(s) from trash?`)) {
+            executeHardDelete(Array.from(selectedIds));
+          }
+        }
       });
 
       favFilterBtn.addEventListener('click', () => {
@@ -3511,111 +3779,248 @@
       });
 
       // Updated to export PG URL (sourceUrl) and human-readable IST timestamp
+      // Two-Section Export: Exports both active and trash arrays in a structured object
+      // Complete Export: Preserves every Firestore field and converts timestamps to IST format
       exportJsonBtn.addEventListener('click', () => {
-        const exportData = allImages.map(img => {
-          const docId = getDocId(img);
-          
-          let readableDate = null;
-          if (img.timestamp && !isNaN(img.timestamp)) {
-            const dateObj = new Date(img.timestamp);
-            // Format to IST in YYYY-MM-DD HH:mm:ss format
-            const istDateStr = dateObj.toLocaleString('sv-SE', { 
-              timeZone: 'Asia/Kolkata' 
-            });
-            readableDate = `${istDateStr} IST`;
+        function formatToIst(val) {
+          if (!val) return null;
+          let d = null;
+          if (typeof val === 'number') {
+            d = new Date(val);
+          } else if (typeof val === 'string') {
+            if (/IST$/i.test(val.trim())) return val.trim();
+            d = new Date(val);
+          } else if (typeof val.toDate === 'function') {
+            d = val.toDate();
           }
+          if (d && !isNaN(d.getTime())) {
+            return `${d.toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' })} IST`;
+          }
+          return null;
+        }
+
+        const mapRecord = (img) => {
+          const docId = getDocId(img);
+          const readableCreationDate = formatToIst(img.timestamp || img.date);
+          const readableUpdatedDate = formatToIst(img.updatedAt) || readableCreationDate;
 
           return {
             docId: docId,
-            url: img.url,
+            url: img.url || img.str || '',
             sourceUrl: img.sourceUrl || '',
             status: img.status || 'unfiltered',
-            favorite: favorites.has(img.url),
-            timestamp: readableDate,
-            tags: img.tags || []
+            favorite: favorites.has(img.url) || Boolean(img.favorite),
+            timestamp: readableCreationDate,
+            updatedAt: readableUpdatedDate,
+            isDeleted: Boolean(img.isDeleted),
+            tags: Array.isArray(img.tags) ? img.tags : []
           };
-        });
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        triggerSafeFileDownload(blob, `gallery_backup_${Date.now()}.json`);
-        showNotification('Backup exported (IST).');
+        };
+
+        const activeItems = allImages.filter(img => !img.isDeleted).map(mapRecord);
+        const trashItems = allImages.filter(img => img.isDeleted).map(mapRecord);
+
+        const exportPayload = {
+          active: activeItems,
+          trash: trashItems
+        };
+
+        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+        triggerSafeFileDownload(blob, `gallery_complete_backup_${Date.now()}.json`);
+        showNotification(`Exported all elements for ${activeItems.length} active and ${trashItems.length} trash images.`);
       });
 
-      importJsonBtn.addEventListener('click', () => importFileInput.click());
-      
-      // Normal mode: Updates matching documents with provided changes, creates new if missing
+      // 1. Hook the Import Button to the hidden file input
+      importJsonBtn.addEventListener('click', () => {
+        importFileInput.value = ''; // Reset so the same file can be re-selected if needed
+        importFileInput.click();
+      });
+
+      // Helper function to reliably convert any date (including "YYYY-MM-DD HH:mm:ss IST") to UTC ISO
+      function parseDateToIso(dateVal) {
+        if (!dateVal) return new Date().toISOString();
+        if (typeof dateVal === 'number') return new Date(dateVal).toISOString();
+        if (typeof dateVal === 'string') {
+          const trimmed = dateVal.trim();
+          if (/IST$/i.test(trimmed)) {
+            // Convert "YYYY-MM-DD HH:mm:ss IST" into valid ISO with India's +05:30 offset
+            const clean = trimmed.replace(/\s*IST$/i, '').trim().replace(' ', 'T') + '+05:30';
+            const d = new Date(clean);
+            if (!isNaN(d.getTime())) return d.toISOString();
+          }
+          const d = new Date(trimmed);
+          if (!isNaN(d.getTime())) return d.toISOString();
+        }
+        return new Date().toISOString();
+      }
+
+      // 2. Crash-proof import processor with batching and live progress
       importFileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
         const reader = new FileReader();
         reader.onload = async (event) => {
           try {
-            const data = JSON.parse(event.target.result);
-            if (!Array.isArray(data)) throw new Error("Format invalid");
-            showNotification(`Syncing ${data.length} files...`, false, 4000);
-            
-            // Map existing loaded images to check for matches by docId or url
-            const existingById = new Map(allImages.map(img => [getDocId(img), img]));
-            const existingByUrl = new Map(allImages.map(img => [img.url, img]));
+            const rawText = event.target.result;
+            if (!rawText || !rawText.trim()) {
+              throw new Error("The selected file is empty.");
+            }
 
-            for (const item of data) {
-              const url = item.url || (typeof item === 'string' ? item : '');
-              if (typeof url !== 'string' || !url.startsWith('http')) continue;
+            let parsed;
+            try {
+              parsed = JSON.parse(rawText);
+            } catch (jsonErr) {
+              throw new Error("JSON syntax error: " + jsonErr.message);
+            }
 
-              // Find target docId
-              const targetDocId = item.docId || 
-                                 (existingByUrl.has(url) ? getDocId(existingByUrl.get(url)) : null);
+            let activeList = [];
+            let trashList = [];
 
-              const isFav = item.favorite === true;
-              const sourceUrl = item.sourceUrl || item.pgUrl || '';
-              const status = item.status || 'unfiltered';
-
-              const itemTags = Array.isArray(item.tags) ? item.tags : [];
-              if (DEFAULT_TAG && !itemTags.includes(DEFAULT_TAG)) {
-                itemTags.unshift(DEFAULT_TAG);
-              }
-
-              // Preserve existing timestamp if available
-              const existingItem = (targetDocId && existingById.get(targetDocId)) || existingByUrl.get(url);
-              let itemDate = item.timestamp || item.date;
-              if (!itemDate && existingItem && existingItem.timestamp) {
-                itemDate = existingItem.timestamp;
-              }
-              const parsedDate = itemDate ? new Date(itemDate) : null;
-              const finalDateIso = (parsedDate && !isNaN(parsedDate.getTime())) 
-                ? parsedDate.toISOString() 
-                : new Date().toISOString();
-
-              const fieldsPayload = {
-                str: { stringValue: url },
-                sourceUrl: { stringValue: sourceUrl },
-                status: { stringValue: status },
-                date: { timestampValue: finalDateIso },
-                favorite: { booleanValue: isFav },
-                tags: { arrayValue: { values: itemTags.map(t => ({ stringValue: t })) } }
-              };
-
-              if (targetDocId) {
-                // Updates the exact document ID without modifying other unspecified metadata
-                const patchUrl = `${FIRESTORE_BASE}/${targetDocId}?updateMask.fieldPaths=str&updateMask.fieldPaths=sourceUrl&updateMask.fieldPaths=status&updateMask.fieldPaths=date&updateMask.fieldPaths=favorite&updateMask.fieldPaths=tags&key=${API_KEY}`;
-                await fetch(patchUrl, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fields: fieldsPayload })
-                });
+            // Support both two-section { active, trash }, flat array, or { images: [...] }
+            if (Array.isArray(parsed)) {
+              activeList = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+              if (Array.isArray(parsed.active) || Array.isArray(parsed.trash)) {
+                activeList = Array.isArray(parsed.active) ? parsed.active : [];
+                trashList = Array.isArray(parsed.trash) ? parsed.trash : [];
+              } else if (Array.isArray(parsed.images)) {
+                activeList = parsed.images;
               } else {
-                // Only creates a new entry if no record matched
-                await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fields: fieldsPayload })
-                });
+                const values = Object.values(parsed);
+                if (values.length > 0 && typeof values[0] === 'object') {
+                  activeList = values;
+                } else {
+                  throw new Error("Unrecognized JSON format (expected an array or { active, trash }).");
+                }
+              }
+            } else {
+              throw new Error("Invalid file content.");
+            }
+
+            const totalCount = activeList.length + trashList.length;
+            if (totalCount === 0) {
+              throw new Error("No image records found inside the JSON file.");
+            }
+
+            showNotification(`Syncing ${totalCount} files to cloud...`, false, 6000);
+
+            // Retrieve Firebase Auth token
+            let idToken = null;
+            if (auth.currentUser) {
+              try {
+                idToken = await auth.currentUser.getIdToken();
+              } catch (tokenErr) {
+                console.warn("Could not retrieve auth token:", tokenErr);
               }
             }
-            
-            showNotification('Sync complete!');
+
+            const authHeaders = {
+              'Content-Type': 'application/json',
+              ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+            };
+
+            // Build crash-proof lookup maps
+            const existingById = new Map();
+            const existingByUrl = new Map();
+
+            allImages.forEach(img => {
+              if (!img) return;
+              const docId = getDocId(img);
+              if (docId) existingById.set(docId, img);
+              if (img.url && typeof img.url === 'string') {
+                existingByUrl.set(img.url.trim().toLowerCase(), img);
+              }
+            });
+
+            const nowIso = new Date().toISOString();
+            let successCount = 0;
+            let errorCount = 0;
+
+            async function syncItemsInBatches(items, isDeletedFlag) {
+              const BATCH_SIZE = 15; // Parallel batches to prevent timeouts
+
+              for (let i = 0; i < items.length; i += BATCH_SIZE) {
+                const chunk = items.slice(i, i + BATCH_SIZE);
+
+                const promises = chunk.map(async (item) => {
+                  const url = item.url || (typeof item === 'string' ? item : '');
+                  if (!url || typeof url !== 'string' || !url.startsWith('http')) return;
+
+                  const normUrl = url.trim().toLowerCase();
+                  const targetDocId = item.docId || 
+                                     (existingByUrl.has(normUrl) ? getDocId(existingByUrl.get(normUrl)) : null);
+
+                  const existingItem = (targetDocId && existingById.get(targetDocId)) || existingByUrl.get(normUrl);
+
+                  let itemDate = item.timestamp || item.date;
+                  if (!itemDate && existingItem && existingItem.timestamp) {
+                    itemDate = existingItem.timestamp;
+                  }
+
+                  const finalDateIso = parseDateToIso(itemDate);
+                  const finalUpdatedIso = item.updatedAt ? parseDateToIso(item.updatedAt) : nowIso;
+
+                  // Safely sanitize tags
+                  const rawTags = Array.isArray(item.tags) ? item.tags : [];
+                  const tagValues = rawTags
+                    .filter(t => t !== null && t !== undefined)
+                    .map(t => ({ stringValue: String(typeof t === 'object' ? (t.stringValue || JSON.stringify(t)) : t).trim() }))
+                    .filter(t => t.stringValue.length > 0);
+
+                  const fieldsPayload = {
+                    str: { stringValue: url },
+                    sourceUrl: { stringValue: item.sourceUrl || item.pgUrl || '' },
+                    status: { stringValue: item.status || 'unfiltered' },
+                    date: { timestampValue: finalDateIso },
+                    updatedAt: { timestampValue: finalUpdatedIso },
+                    isDeleted: { booleanValue: isDeletedFlag },
+                    favorite: { booleanValue: Boolean(item.favorite) },
+                    tags: { arrayValue: { values: tagValues } }
+                  };
+
+                  try {
+                    if (targetDocId) {
+                      const patchUrl = `${FIRESTORE_BASE}/${targetDocId}?updateMask.fieldPaths=str&updateMask.fieldPaths=sourceUrl&updateMask.fieldPaths=status&updateMask.fieldPaths=date&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=isDeleted&updateMask.fieldPaths=favorite&updateMask.fieldPaths=tags&key=${API_KEY}`;
+                      await fetch(patchUrl, {
+                        method: 'PATCH',
+                        headers: authHeaders,
+                        body: JSON.stringify({ fields: fieldsPayload })
+                      });
+                    } else {
+                      const postUrl = item.docId 
+                        ? `${FIRESTORE_BASE}?documentId=${encodeURIComponent(item.docId)}&key=${API_KEY}`
+                        : `${FIRESTORE_BASE}?key=${API_KEY}`;
+
+                      await fetch(postUrl, {
+                        method: 'POST',
+                        headers: authHeaders,
+                        body: JSON.stringify({ fields: fieldsPayload })
+                      });
+                    }
+                    successCount++;
+                  } catch (err) {
+                    console.warn(`Failed to sync item ${url}:`, err);
+                    errorCount++;
+                  }
+                });
+
+                await Promise.allSettled(promises);
+                showNotification(`Processed ${Math.min(i + BATCH_SIZE, items.length)} / ${items.length}...`, false, 3000);
+              }
+            }
+
+            await syncItemsInBatches(activeList, false);
+            if (trashList.length > 0) {
+              await syncItemsInBatches(trashList, true);
+            }
+
+            localStorage.removeItem('gallery_last_sync'); // Refresh cursor
+            showNotification(`Sync finished: ${successCount} saved, ${errorCount} errors.`);
           } catch (err) {
-            console.error(err);
-            showNotification('Could not parse JSON archive.');
+            console.error("Import error stack:", err);
+            // Display the exact cause of failure
+            showNotification(`Import failed: ${err.message}`, true, 6000);
           }
         };
         reader.readAsText(file);
@@ -3626,74 +4031,54 @@
         undoBtn.addEventListener('click', async () => {
           if (currentHistoryIndex < 0) return;
           const action = actionHistory[currentHistoryIndex];
-          
-          if (action.type === 'delete') {
-            showNotification('Restoring images...');
-            currentHistoryIndex--;
-            updateHistoryButtons();
+          currentHistoryIndex--;
+          updateHistoryButtons();
 
-            const restoredItems = [];
+          if (action.type === 'softDelete') {
+            showNotification(`Undoing delete for ${action.items.length} item(s)...`);
             for (const item of action.items) {
-              const isFav = favorites.has(item.url);
-              const originalDateIso = (item.timestamp && !isNaN(item.timestamp))
-                ? new Date(item.timestamp).toISOString()
-                : new Date().toISOString();
-
-              const firestorePayload = {
-                fields: {
-                  str: { stringValue: item.url },
-                  sourceUrl: { stringValue: item.sourceUrl || '' },
-                  date: { timestampValue: originalDateIso },
-                  favorite: { booleanValue: isFav },
-                  status: { stringValue: item.status || 'unfiltered' },
-                  tags: { arrayValue: { values: (item.tags || [DEFAULT_TAG]).filter(Boolean).map(t => ({ stringValue: t })) } }
-                }
-              };
-
-              try {
-                const res = await fetch(`${FIRESTORE_BASE}?key=${API_KEY}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(firestorePayload)
-                });
-                const data = await res.json();
-                
-                const restored = { 
-                  ...item, 
-                  id: data.name,
-                  docId: data.name.split('/').pop(),
-                  timestamp: item.timestamp ?? Date.now()
-                };
-                restoredItems.push(restored);
-                allImages.push(restored);
-              } catch (e) {
-                restoredItems.push(item);
-                allImages.push(item);
+              item.isDeleted = false;
+              item.updatedAt = Date.now();
+              const docId = getDocId(item);
+              if (docId) {
+                updateDoc(doc(db, COLLECTION_NAME, docId), {
+                  isDeleted: false,
+                  updatedAt: new Date()
+                }).catch(e => console.error("Undo delete error:", e));
               }
             }
-
-            action.items = restoredItems;
             renderGallery();
+            updateViewCounters();
+          } else if (action.type === 'restore') {
+            showNotification(`Undoing restore for ${action.items.length} item(s)...`);
+            for (const item of action.items) {
+              item.isDeleted = true;
+              item.updatedAt = Date.now();
+              const docId = getDocId(item);
+              if (docId) {
+                updateDoc(doc(db, COLLECTION_NAME, docId), {
+                  isDeleted: true,
+                  updatedAt: new Date()
+                }).catch(e => console.error("Undo restore error:", e));
+              }
+            }
+            renderGallery();
+            updateViewCounters();
           } else if (action.type === 'favorite') {
             if (action.previousState) {
               favorites.add(action.url);
             } else {
               favorites.delete(action.url);
             }
-            currentHistoryIndex--;
-            updateHistoryButtons();
             renderGallery();
 
             const currentDoc = allImages.find(img => img.url === action.url) || action.item;
             const docId = getDocId(currentDoc);
             if (docId) {
-              try {
-                fetch(`${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fields: { favorite: { booleanValue: action.previousState } } })
-                });
-              } catch (e) {}
+              updateDoc(doc(db, COLLECTION_NAME, docId), {
+                favorite: action.previousState,
+                updatedAt: new Date()
+              }).catch(e => console.error("Undo favorite error:", e));
             }
           }
         });
@@ -3704,48 +4089,53 @@
           if (currentHistoryIndex >= actionHistory.length - 1) return;
           currentHistoryIndex++;
           const action = actionHistory[currentHistoryIndex];
+          updateHistoryButtons();
 
-          if (action.type === 'delete') {
-            showNotification('Redoing delete...');
-            const idsToRemove = new Set(action.items.map(i => i.id));
-            
-            allImages = allImages.filter(img => !idsToRemove.has(img.id));
-            
-            action.items.forEach(deletedItem => {
-              const stillExists = allImages.some(img => img.url === deletedItem.url);
-              if (!stillExists) {
-                favorites.delete(deletedItem.url);
-              }
-            });
-
-            selectedIds.clear();
-            updateHistoryButtons();
-            renderGallery();
-
+          if (action.type === 'softDelete') {
+            showNotification(`Redoing delete for ${action.items.length} item(s)...`);
             for (const item of action.items) {
+              item.isDeleted = true;
+              item.updatedAt = Date.now();
               const docId = getDocId(item);
               if (docId) {
-                fetch(`${FIRESTORE_BASE}/${docId}?key=${API_KEY}`, { method: 'DELETE' });
+                updateDoc(doc(db, COLLECTION_NAME, docId), {
+                  isDeleted: true,
+                  updatedAt: new Date()
+                }).catch(e => console.error("Redo delete error:", e));
               }
             }
+            renderGallery();
+            updateViewCounters();
+          } else if (action.type === 'restore') {
+            showNotification(`Redoing restore for ${action.items.length} item(s)...`);
+            for (const item of action.items) {
+              item.isDeleted = false;
+              item.updatedAt = Date.now();
+              const docId = getDocId(item);
+              if (docId) {
+                updateDoc(doc(db, COLLECTION_NAME, docId), {
+                  isDeleted: false,
+                  updatedAt: new Date()
+                }).catch(e => console.error("Redo restore error:", e));
+              }
+            }
+            renderGallery();
+            updateViewCounters();
           } else if (action.type === 'favorite') {
             if (action.newState) {
               favorites.add(action.url);
             } else {
               favorites.delete(action.url);
             }
-            updateHistoryButtons();
             renderGallery();
 
-            const docId = getDocId(action.item);
+            const currentDoc = allImages.find(img => img.url === action.url) || action.item;
+            const docId = getDocId(currentDoc);
             if (docId) {
-              try {
-                fetch(`${FIRESTORE_BASE}/${docId}?updateMask.fieldPaths=favorite&key=${API_KEY}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fields: { favorite: { booleanValue: action.newState } } })
-                });
-              } catch (e) {}
+              updateDoc(doc(db, COLLECTION_NAME, docId), {
+                favorite: action.newState,
+                updatedAt: new Date()
+              }).catch(e => console.error("Redo favorite error:", e));
             }
           }
         });
@@ -3811,6 +4201,15 @@
         modalNextBtn.classList.remove('hidden');
         modalBottomActions.classList.remove('hidden');
         updateModalFavUI();
+
+        // Sets icon to Trash (🗑️) in Active view, or Purge (🔥) in Trash view
+        if (currentView === 'active') {
+          modalDeleteBtn.title = "Move to Trash";
+          modalDeleteBtn.innerHTML = "🗑️";
+        } else {
+          modalDeleteBtn.title = "Permanently Delete";
+          modalDeleteBtn.innerHTML = "🔥";
+        }
         
         if (!imageModal.classList.contains('open')) {
           history.pushState({ modalOpen: true }, '');
@@ -4218,12 +4617,23 @@
         }
       });
 
-      modalDeleteBtn.addEventListener('click', (e) => {
+      modalDeleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const visible = getVisibleImages();
-        if (visible.length && currentModalIndex >= 0) {
-          const targetId = visible[currentModalIndex].id;
-          promptDelete([targetId], 'Delete Image?');
+        if (!visible.length || currentModalIndex < 0) return;
+
+        const targetItem = visible[currentModalIndex];
+
+        if (currentView === 'active') {
+          // Soft-deletes to Trash and syncs count immediately
+          closeModal();
+          await softDeleteImage(targetItem);
+        } else {
+          // In Trash view: Confirms and executes permanent purge
+          if (confirm('Permanently erase this image from cloud and disk?')) {
+            closeModal();
+            await executeHardDelete([targetItem.id]);
+          }
         }
       });
 
@@ -4305,101 +4715,307 @@
       });
 
 
-      function setupRealtimeGallery() {
-        const imagesCol = collection(db, COLLECTION_NAME);
-        loadingMessage.textContent = '✨ Connecting to live gallery stream...';
+      function toIsoString(val) {
+        if (!val) return new Date().toISOString();
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number') return new Date(val).toISOString();
+        if (typeof val.toDate === 'function') return val.toDate().toISOString();
+        return new Date().toISOString();
+      }
 
+      function attachDeltaListener() {
         if (unsubscribeSnapshot) {
           unsubscribeSnapshot();
+          unsubscribeSnapshot = null;
         }
 
-        unsubscribeSnapshot = onSnapshot(imagesCol, (snapshot) => {
-          loadingMessage.style.display = 'none';
+        const imagesCol = collection(db, COLLECTION_NAME);
+        
+        // 1. Retrieve the stored epoch millisecond number
+        const lastSyncMs = parseInt(localStorage.getItem('gallery_last_sync_ms') || '0', 10);
+        
+        // 2. Add a 30-second buffer to eliminate clock-skew drops
+        const queryDate = new Date(Math.max(0, lastSyncMs - 30000));
+
+        // 3. Passing a native Date object forces SDK to query against Firestore Timestamps
+        const deltaQuery = query(
+          imagesCol,
+          where("updatedAt", ">", queryDate),
+          orderBy("updatedAt", "asc")
+        );
+
+        unsubscribeSnapshot = onSnapshot(deltaQuery, (snapshot) => {
+          let hasChanges = false;
+          let maxReceivedMs = lastSyncMs;
 
           snapshot.docChanges().forEach((change) => {
-            const doc = change.doc;
-            const data = doc.data();
-            const docId = doc.id;
+            const docSnap = change.doc;
+            const data = docSnap.data();
+            const docId = docSnap.id;
+
+            if (locallyDeletedIds.has(docId)) return;
+
+            const fullId = `projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}/${docId}`;
+
+            // Parse creation timestamp
+            let timestamp = Date.now();
+            if (data.date) {
+              timestamp = typeof data.date.toDate === 'function' 
+                ? data.date.toDate().getTime() 
+                : new Date(data.date).getTime();
+            }
+
+            // Parse updatedAt timestamp
+            let updatedTime = timestamp;
+            if (data.updatedAt) {
+              if (typeof data.updatedAt.toDate === 'function') {
+                updatedTime = data.updatedAt.toDate().getTime();
+              } else if (typeof data.updatedAt === 'number') {
+                updatedTime = data.updatedAt < 1e11 ? data.updatedAt * 1000 : data.updatedAt;
+              } else if (typeof data.updatedAt === 'string') {
+                const clean = data.updatedAt.replace(/\s*IST$/i, '').trim().replace(' ', 'T');
+                const parsed = new Date(clean);
+                if (!isNaN(parsed.getTime())) updatedTime = parsed.getTime();
+              }
+            }
+
+            if (updatedTime > maxReceivedMs) {
+              maxReceivedMs = updatedTime;
+            }
+
+            const itemData = {
+              ...data,
+              id: fullId,
+              docId: docId,
+              url: data.str || data.url || '',
+              sourceUrl: data.sourceUrl || '',
+              status: (data.status || 'unfiltered').toLowerCase(),
+              name: sanitizeFilename(data.str || data.url || ''),
+              timestamp: timestamp,
+              updatedAt: updatedTime,
+              isDeleted: data.isDeleted === true,
+              favorite: Boolean(data.favorite),
+              tags: Array.isArray(data.tags) ? data.tags : []
+            };
+
+            const existingIdx = allImages.findIndex(img => getDocId(img) === docId);
+
+            if (change.type === 'added') {
+              if (existingIdx === -1) {
+                allImages.push(itemData);
+                if (itemData.favorite) favorites.add(itemData.url);
+                itemData.tags.forEach(t => allTags.add(t));
+                hasChanges = true;
+              }
+            } else if (change.type === 'modified') {
+              if (existingIdx !== -1) {
+                allImages[existingIdx] = { ...allImages[existingIdx], ...itemData };
+                if (itemData.favorite) favorites.add(itemData.url);
+                else favorites.delete(itemData.url);
+                itemData.tags.forEach(t => allTags.add(t));
+                hasChanges = true;
+              }
+            } else if (change.type === 'removed') {
+              allImages = allImages.filter(img => getDocId(img) !== docId);
+              hasChanges = true;
+            }
+          });
+
+          if (maxReceivedMs > lastSyncMs) {
+            localStorage.setItem('gallery_last_sync_ms', maxReceivedMs.toString());
+          }
+
+          if (hasChanges) {
+            updateViewCounters();
+            updateTagDatalist();
+            render();
+          }
+        }, (error) => {
+          console.error('Delta sync listener error:', error);
+          showNotification('Sync listener error: ' + error.message, true, 5000);
+        });
+      }
+
+      const resyncCloudBtn = document.getElementById('resyncCloudBtn');
+
+      async function calibrateLocalCacheFromServer() {
+        loadingMessage.style.display = 'block';
+        loadingMessage.textContent = '✨ Calibrating local cache from Firestore cloud...';
+
+        try {
+          const imagesCol = collection(db, COLLECTION_NAME);
+          // Pulls all 1,271 docs directly from server and writes them to browser IndexedDB
+          const serverSnap = await getDocs(imagesCol);
+
+          allImages = [];
+          favorites.clear();
+          allTags.clear();
+          let maxUpdatedAt = 0;
+
+          serverSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const docId = docSnap.id;
             const fullId = `projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}/${docId}`;
 
             let timestamp = Date.now();
             if (data.date) {
-              if (typeof data.date.toDate === 'function') {
-                timestamp = data.date.toDate().getTime();
-              } else if (typeof data.date === 'string' || typeof data.date === 'number') {
-                const parsed = new Date(data.date).getTime();
-                if (!isNaN(parsed)) timestamp = parsed;
-              }
+              timestamp = typeof data.date.toDate === 'function' 
+                ? data.date.toDate().getTime() 
+                : new Date(data.date).getTime();
             }
 
+            let updatedTime = timestamp;
+            if (data.updatedAt) {
+              updatedTime = typeof data.updatedAt.toDate === 'function'
+                ? data.updatedAt.toDate().getTime()
+                : new Date(data.updatedAt).getTime();
+            }
+
+            if (updatedTime > maxUpdatedAt) maxUpdatedAt = updatedTime;
+
             const itemData = {
+              ...data,
               id: fullId,
               docId: docId,
-              url: data.str || '',
+              url: data.str || data.url || '',
               sourceUrl: data.sourceUrl || '',
               status: (data.status || 'unfiltered').toLowerCase(),
-              name: sanitizeFilename(data.str || ''),
+              name: sanitizeFilename(data.str || data.url || ''),
               timestamp: timestamp,
+              updatedAt: updatedTime,
+              isDeleted: data.isDeleted === true,
+              favorite: Boolean(data.favorite),
               tags: Array.isArray(data.tags) ? data.tags : []
             };
 
-            if (DEFAULT_TAG && !itemData.tags.includes(DEFAULT_TAG)) {
-              itemData.tags.unshift(DEFAULT_TAG);
-            }
-
-            if (change.type === 'added') {
-              const existingIdx = allImages.findIndex(img => img.docId === docId);
-              if (existingIdx === -1) {
-                allImages.push(itemData);
-                if (data.favorite) favorites.add(itemData.url);
-                itemData.tags.forEach(t => allTags.add(t));
-              }
-            } else if (change.type === 'modified') {
-              const idx = allImages.findIndex(img => img.docId === docId);
-              if (idx !== -1) {
-                allImages[idx] = { ...allImages[idx], ...itemData };
-                if (data.favorite) favorites.add(itemData.url);
-                else favorites.delete(itemData.url);
-                itemData.tags.forEach(t => allTags.add(t));
-              }
-            } else if (change.type === 'removed') {
-              if (locallyDeletedIds.has(fullId) || locallyDeletedIds.has(docId)) {
-                locallyDeletedIds.delete(fullId);
-                locallyDeletedIds.delete(docId);
-                return;
-              }
-              allImages = allImages.filter(img => img.docId !== docId);
-              selectedIds.delete(fullId);
-            }
+            allImages.push(itemData);
+            if (itemData.favorite) favorites.add(itemData.url);
+            itemData.tags.forEach(t => allTags.add(t));
           });
 
-          // Synchronize modal position if currently open
-          if (imageModal.classList.contains('open') && currentModalDocId) {
-            const visible = getVisibleImages();
-            const foundIdx = visible.findIndex(img => img.docId === currentModalDocId);
-            if (foundIdx !== -1) {
-              currentModalIndex = foundIdx;
-              updateRemainingSubtitle();
-            } else {
-              closeModal();
-              showNotification('The image being viewed was removed remotely.');
-            }
+          // Mark cache as calibrated and record the highest sync timestamp
+          localStorage.setItem('cache_calibrated_v1', 'true');
+          if (maxUpdatedAt > 0) {
+            localStorage.setItem('gallery_last_sync_ms', maxUpdatedAt.toString());
           }
 
-          if (allImages.length === 0) {
-            gridContainer.innerHTML = '<div style="text-align: center; width: 100%; color: var(--text-muted); padding: 50px;">No images in cloud library.</div>';
-          }
-
+          loadingMessage.style.display = 'none';
+          updateViewCounters();
           updateTagDatalist();
           render();
-        }, (error) => {
-          console.error('Realtime listener error:', error);
-          loadingMessage.textContent = 'Could not sync real-time changes.';
+          showNotification(`Cache calibrated: Loaded all ${allImages.length} images!`);
+        } catch (err) {
+          console.error("Cache calibration error:", err);
+          loadingMessage.textContent = 'Could not load complete library from server.';
+        }
+      }
+
+      if (resyncCloudBtn) {
+        resyncCloudBtn.addEventListener('click', async () => {
+          await calibrateLocalCacheFromServer();
+          attachDeltaListener();
         });
+      }
+
+      async function setupRealtimeGallery() {
+        const isCalibrated = localStorage.getItem('cache_calibrated_v1') === 'true';
+
+        // 1. If never calibrated on this device, pull everything once from the server
+        if (!isCalibrated) {
+          await calibrateLocalCacheFromServer();
+          attachDeltaListener();
+          return;
+        }
+
+        const imagesCol = collection(db, COLLECTION_NAME);
+        loadingMessage.textContent = '⚡ Loading gallery from local cache...';
+
+        try {
+          // 2. Normal everyday launch: Read entirely from IndexedDB (0 Server Reads)
+          const cachedSnap = await getDocsFromCache(imagesCol);
+
+          // If local disk is missing items, calibrate once
+          if (cachedSnap.empty) {
+            await calibrateLocalCacheFromServer();
+            attachDeltaListener();
+            return;
+          }
+
+          allImages = [];
+          favorites.clear();
+          allTags.clear();
+          let maxUpdatedAt = 0;
+
+          cachedSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const docId = docSnap.id;
+            const fullId = `projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}/${docId}`;
+
+            let timestamp = Date.now();
+            if (data.date) {
+              timestamp = typeof data.date.toDate === 'function' 
+                ? data.date.toDate().getTime() 
+                : new Date(data.date).getTime();
+            }
+
+            let updatedTime = timestamp;
+            if (data.updatedAt) {
+              updatedTime = typeof data.updatedAt.toDate === 'function'
+                ? data.updatedAt.toDate().getTime()
+                : new Date(data.updatedAt).getTime();
+            }
+
+            if (updatedTime > maxUpdatedAt) maxUpdatedAt = updatedTime;
+
+            const itemData = {
+              ...data,
+              id: fullId,
+              docId: docId,
+              url: data.str || data.url || '',
+              sourceUrl: data.sourceUrl || '',
+              status: (data.status || 'unfiltered').toLowerCase(),
+              name: sanitizeFilename(data.str || data.url || ''),
+              timestamp: timestamp,
+              updatedAt: updatedTime,
+              isDeleted: data.isDeleted === true,
+              favorite: Boolean(data.favorite),
+              tags: Array.isArray(data.tags) ? data.tags : []
+            };
+
+            allImages.push(itemData);
+            if (itemData.favorite) favorites.add(itemData.url);
+            itemData.tags.forEach(t => allTags.add(t));
+          });
+
+          if (maxUpdatedAt > 0) {
+            localStorage.setItem('gallery_last_sync_ms', maxUpdatedAt.toString());
+          }
+
+          loadingMessage.style.display = 'none';
+          updateViewCounters();
+          updateTagDatalist();
+          render();
+        } catch (err) {
+          console.warn("Local cache empty, falling back to server calibration:", err);
+          await calibrateLocalCacheFromServer();
+        }
+
+        // Attach delta listener for real-time additions and modifications
+        attachDeltaListener();
       }
 
       galleryTitleBtn.addEventListener('click', () => {
         exitDuplicateView();
+
+        if (currentView === 'trash' && viewTrashBtn) {
+          currentView = 'active';
+          viewTrashBtn.classList.remove('btn-toggle', 'active');
+          viewTrashBtn.innerHTML = `🗑️ Trash (<span id="trashCountLabel">${allImages.filter(img => img.isDeleted).length}</span>)`;
+          if (restoreSelectedBtn) restoreSelectedBtn.style.display = 'none';
+          deleteSelectedBtn.textContent = '🗑️ Delete Selected';
+          selectedIds.clear();
+          updateSelectionState();
+        }
 
         staticTop.classList.remove('header-hidden', 'header-scrolled', 'is-sticky'); 
         headerRevealBtn.classList.remove('visible');
