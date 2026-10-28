@@ -1848,6 +1848,7 @@
         updateDoc,        // Enables native SDK soft-deletes and cache writes
         deleteDoc,        // Enables permanent hard-purges
         getDocs,          // Enables full cloud sync calibration
+        getDocsFromServer,
         getDocsFromCache, // Enables zero-read local cache loads
         onSnapshot 
       } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -4845,8 +4846,9 @@
 
         try {
           const imagesCol = collection(db, COLLECTION_NAME);
-          // Pulls all 1,271 docs directly from server and writes them to browser IndexedDB
-          const serverSnap = await getDocs(imagesCol);
+
+          // Forces a true network fetch from the cloud server, bypassing stale IndexedDB
+          const serverSnap = await getDocsFromServer(imagesCol);
 
           allImages = [];
           favorites.clear();
@@ -4867,9 +4869,15 @@
 
             let updatedTime = timestamp;
             if (data.updatedAt) {
-              updatedTime = typeof data.updatedAt.toDate === 'function'
-                ? data.updatedAt.toDate().getTime()
-                : new Date(data.updatedAt).getTime();
+              if (typeof data.updatedAt.toDate === 'function') {
+                updatedTime = data.updatedAt.toDate().getTime();
+              } else if (typeof data.updatedAt === 'string') {
+                const clean = data.updatedAt.replace(/\s*IST$/i, '').trim().replace(' ', 'T');
+                const parsed = new Date(clean);
+                if (!isNaN(parsed.getTime())) updatedTime = parsed.getTime();
+              } else {
+                updatedTime = new Date(data.updatedAt).getTime() || timestamp;
+              }
             }
 
             if (updatedTime > maxUpdatedAt) maxUpdatedAt = updatedTime;
@@ -4894,7 +4902,6 @@
             itemData.tags.forEach(t => allTags.add(t));
           });
 
-          // Mark cache as calibrated and record the highest sync timestamp
           localStorage.setItem('cache_calibrated_v1', 'true');
           if (maxUpdatedAt > 0) {
             localStorage.setItem('gallery_last_sync_ms', maxUpdatedAt.toString());
@@ -4907,7 +4914,8 @@
           showNotification(`Cache calibrated: Loaded all ${allImages.length} images!`);
         } catch (err) {
           console.error("Cache calibration error:", err);
-          loadingMessage.textContent = 'Could not load complete library from server.';
+          loadingMessage.textContent = 'Could not load complete library from server: ' + err.message;
+          showNotification("Calibration failed: " + err.message, true, 6000);
         }
       }
 
