@@ -1531,6 +1531,64 @@
         letter-spacing: 0.5px;
       }
       
+      /* Scroll-to-Top Floating Button */
+      .scroll-to-top-btn {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(220, 224, 230, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1050;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(16px) scale(0.9);
+        transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s, background-color 0.2s ease;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      [data-theme="dark"] .scroll-to-top-btn {
+        background: rgba(45, 55, 72, 0.9);
+        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      }
+
+      .scroll-to-top-btn svg {
+        width: 20px;
+        height: 20px;
+        stroke: #525a66;
+        stroke-width: 3;
+        fill: none;
+      }
+
+      [data-theme="dark"] .scroll-to-top-btn svg {
+        stroke: #e2e8f0;
+      }
+
+      .scroll-to-top-btn.visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+
+      .scroll-to-top-btn:hover {
+        background: rgba(205, 210, 220, 0.98);
+        transform: translateY(-2px) scale(1.04);
+      }
+
+      [data-theme="dark"] .scroll-to-top-btn:hover {
+        background: rgba(60, 72, 92, 0.98);
+      }
     </style>
 </head>
 <body>
@@ -1704,6 +1762,12 @@
       <div id="loadingMessage" class="loading-state">✨ Loading your visual gallery...</div>
       <div class="masonry-grid" id="imageGrid"></div>
     </main>
+
+    <button id="scrollToTopBtn" class="scroll-to-top-btn" title="Back to top" aria-label="Scroll to top">
+      <svg viewBox="0 0 24 24">
+        <path d="M18 15L12 9L6 15" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
 
     <!-- Global Info & Tag Overlay Interface -->
     <div class="overlay-modal" id="infoOverlayModal">
@@ -2251,6 +2315,17 @@
       const savedTheme = localStorage.getItem('gallery_theme') || 'light';
       setTheme(savedTheme);
 
+      const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+
+      if (scrollToTopBtn) {
+        scrollToTopBtn.addEventListener('click', () => {
+          mainContent.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        });
+      }
+
       let lastScrollY = 0;
       mainContent.addEventListener('scroll', () => {
         if (ignoreScrollEvents) {
@@ -2268,19 +2343,35 @@
           staticTop.classList.remove('header-scrolled');
         }
 
-        if (Math.abs(delta) > 8) {
-          if (delta > 0 && currentY > headerHeight) {
-            staticTop.classList.add('header-hidden');
-            headerRevealBtn.classList.remove('visible');
-          } else if (delta < 0 && currentY > headerHeight) {
-            if (staticTop.classList.contains('header-hidden')) {
+        if (Math.abs(delta) > 6) {
+          if (delta > 0) {
+            // Scrolling DOWN: hide header & hide scroll-to-top button
+            if (currentY > headerHeight) {
+              staticTop.classList.add('header-hidden');
+              headerRevealBtn.classList.remove('visible');
+            }
+            if (scrollToTopBtn) {
+              scrollToTopBtn.classList.remove('visible');
+            }
+          } else if (delta < 0) {
+            // Scrolling UP: reveal header button and scroll-to-top button
+            if (currentY > headerHeight && staticTop.classList.contains('header-hidden')) {
               headerRevealBtn.classList.add('visible');
             }
-          } else if (currentY <= headerHeight) {
+            if (scrollToTopBtn && currentY > 200) {
+              scrollToTopBtn.classList.add('visible');
+            }
+          }
+          lastScrollY = currentY;
+        }
+
+        // When near or at the top of the gallery, always hide
+        if (currentY <= 200) {
+          if (scrollToTopBtn) scrollToTopBtn.classList.remove('visible');
+          if (currentY <= headerHeight) {
             staticTop.classList.remove('header-hidden');
             headerRevealBtn.classList.remove('visible');
           }
-          lastScrollY = currentY;
         }
 
         if (currentY <= 0) {
@@ -2650,6 +2741,18 @@
       async function softDeleteImage(item, recordHistory = true) {
         item.isDeleted = true;
         item.updatedAt = Date.now();
+
+        // If in duplicate mode, drop the soft-deleted item from clusters immediately
+        if (activeDuplicateGroups) {
+          activeDuplicateGroups = activeDuplicateGroups
+            .map(group => group.filter(img => !img.isDeleted))
+            .filter(group => group.length > 1);
+
+          if (activeDuplicateGroups.length === 0) {
+            exitDuplicateView();
+          }
+        }
+
         renderGallery();
         updateViewCounters();
 
@@ -3552,7 +3655,32 @@
             type: 'softDelete',
             items: [...itemsToSoftDelete]
           });
+
+          // Mark as deleted locally first
+          itemsToSoftDelete.forEach(img => {
+            img.isDeleted = true;
+            img.updatedAt = Date.now();
+          });
+
+          // Prune soft-deleted images from active duplicate clusters immediately
+          if (activeDuplicateGroups) {
+            activeDuplicateGroups = activeDuplicateGroups
+              .map(group => group.filter(img => !img.isDeleted))
+              .filter(group => group.length > 1);
+
+            // If no pairs/clusters remain, automatically exit duplicate mode
+            if (activeDuplicateGroups.length === 0) {
+              exitDuplicateView();
+              await Promise.allSettled(itemsToSoftDelete.map(img => softDeleteImage(img, false)));
+              return;
+            }
+          }
+
+          // Refresh UI instantaneously before awaiting cloud network sync
+          updateViewCounters();
+          renderGallery();
           
+          // Sync to Firestore in the background
           await Promise.allSettled(itemsToSoftDelete.map(img => softDeleteImage(img, false)));
         } else {
           if (confirm(`Permanently erase ${count} item(s) from trash?`)) {
@@ -3711,29 +3839,53 @@
           return;
         }
 
-        const candidates = allImages;
+        // Only scan images that are currently active (exclude soft-deleted trash items)
+        const candidates = allImages.filter(img => !img.isDeleted);
+
+        if (candidates.length === 0) {
+          showNotification('No active images to scan.');
+          return;
+        }
 
         if (candidates.length > 250) {
-          const ok = confirm(`Analyzing ${candidates.length} images visually may take 15-30s. Continue?`);
+          const ok = confirm(`Analyzing ${candidates.length} images visually may take some time. Continue?`);
           if (!ok) return;
         }
 
         findVisualDupsBtn.classList.add('active');
         findUrlDupsBtn.classList.remove('active');
-        findVisualDupsBtn.textContent = '👁️ Scanning...';
         findVisualDupsBtn.disabled = true;
 
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        showNotification(`Scanning visual hashes (${candidates.length} images)...`, false, 8000);
+        const total = candidates.length;
         const hashes = [];
+        let failedCount = 0;
 
-        for (let i = 0; i < candidates.length; i++) {
+        // --- Step 1: Scan & Hash with Live Progress ---
+        for (let i = 0; i < total; i++) {
+          const currentNum = i + 1;
+          const percent = Math.round((currentNum / total) * 100);
+
+          // Update button & toast counters in real time
+          findVisualDupsBtn.textContent = `👁️ ${currentNum}/${total} (${percent}%)`;
+          if (currentNum % 10 === 0 || currentNum === total) {
+            showNotification(`Scanning visual hashes: ${currentNum}/${total} (${percent}%)`, false, 2000);
+          }
+
           try {
             const h = await computeDHash(candidates[i].url);
             hashes.push({ item: candidates[i], hash: h });
-          } catch (e) { }
+          } catch (err) {
+            failedCount++;
+            console.warn(`[Visual Scan] Skipped (CORS/Failed fetch): ${candidates[i].url}`, err);
+          }
+
+          // Yield control so the UI repaints every frame
+          await new Promise(resolve => setTimeout(resolve, 0));
         }
+
+        // --- Step 2: Compare Hashes & Cluster ---
+        findVisualDupsBtn.textContent = '👁️ Comparing...';
+        await new Promise(resolve => setTimeout(resolve, 30));
 
         const clusters = [];
         const assigned = new Set();
@@ -3744,7 +3896,8 @@
 
           for (let j = i + 1; j < hashes.length; j++) {
             if (assigned.has(j)) continue;
-            if (getHammingDistance(hashes[i].hash, hashes[j].hash) <= 4) {
+            // Distance <= 6 detects duplicates with slight compression/resizing differences
+            if (getHammingDistance(hashes[i].hash, hashes[j].hash) <= 6) {
               cluster.push(hashes[j].item);
               assigned.add(j);
             }
@@ -3761,7 +3914,10 @@
 
         if (clusters.length === 0) {
           findVisualDupsBtn.classList.remove('active');
-          showNotification('No visual duplicates found.');
+          const msg = failedCount > 0 
+            ? `No visual duplicates found. (${failedCount} images failed due to CORS restrictions)`
+            : 'No visual duplicates found.';
+          showNotification(msg, false, 5000);
           return;
         }
 
@@ -3769,6 +3925,7 @@
         activeDuplicateGroups = clusters;
         selectedIds.clear();
 
+        // Pre-select duplicates (keep first copy unchecked)
         clusters.forEach(cluster => {
           for (let i = 1; i < cluster.length; i++) {
             selectedIds.add(cluster[i].id);
@@ -3777,7 +3934,10 @@
 
         updateSelectionState();
         renderGallery();
-        showNotification(`Found ${clusters.length} visual duplicate sets. Click button again to exit.`);
+
+        const summary = `Found ${clusters.length} duplicate group(s) across ${hashes.length} scanned images.` +
+          (failedCount > 0 ? ` (${failedCount} skipped due to CORS/errors)` : '');
+        showNotification(summary, false, 5000);
       });
 
       // Updated to export PG URL (sourceUrl) and human-readable IST timestamp
@@ -4197,11 +4357,12 @@
         modalImg.src = visible[currentModalIndex].url;
         modalImg.className = 'modal-content';
         
-        modalClose.classList.remove('hidden');
-        modalTopLeftGroup.classList.remove('hidden');
-        modalPrevBtn.classList.remove('hidden');
-        modalNextBtn.classList.remove('hidden');
-        modalBottomActions.classList.remove('hidden');
+        // Initially hide all control buttons and toolbars
+        modalClose.classList.add('hidden');
+        modalTopLeftGroup.classList.add('hidden');
+        modalPrevBtn.classList.add('hidden');
+        modalNextBtn.classList.add('hidden');
+        modalBottomActions.classList.add('hidden');
         updateModalFavUI();
 
         // Sets icon to Trash (🗑️) in Active view, or Purge (🔥) in Trash view
@@ -4682,16 +4843,22 @@
       }
 
       modalClose.addEventListener('click', closeModal);
+      modalTopLeftGroup.addEventListener('click', (e) => e.stopPropagation());
+      modalBottomActions.addEventListener('click', (e) => e.stopPropagation());
       
-      imageModal.addEventListener('click', (e) => {
-        if (e.target === imageModal && dragDistanceMoved <= 8) {
+      function handleBackdropClick(e) {
+        // If clicked directly on the modal backdrop or the viewer container (empty space outside the image)
+        if ((e.target === imageModal || e.target === modalViewer) && dragDistanceMoved <= 8) {
           if (isZoomed) {
             resetZoom(true);
             return;
           }
           closeModal();
         }
-      });
+      }
+
+      imageModal.addEventListener('click', handleBackdropClick);
+      modalViewer.addEventListener('click', handleBackdropClick);
 
       document.addEventListener('keydown', (e) => {
         if (infoOverlayModal.classList.contains('open')) {
@@ -5014,7 +5181,6 @@
       }
 
       galleryTitleBtn.addEventListener('click', () => {
-        exitDuplicateView();
 
         if (currentView === 'trash' && viewTrashBtn) {
           currentView = 'active';
